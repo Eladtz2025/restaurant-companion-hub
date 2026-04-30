@@ -1,6 +1,7 @@
 'use server';
 
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { logAuditEvent } from '@/lib/audit/logger';
+import { createServerSupabaseClient, getAuthContext } from '@/lib/supabase/server';
 
 import type {
   IngredientUnit,
@@ -198,6 +199,29 @@ export async function removeComponent(tenantId: string, componentId: string): Pr
     .eq('tenant_id', tenantId)
     .eq('id', componentId);
   if (error) throw new Error(error.message);
+}
+
+export async function deleteRecipe(tenantId: string, id: string): Promise<void> {
+  const ctx = await getAuthContext();
+  const before = await getRecipeWithComponents(tenantId, id);
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase.from('recipes').delete().eq('tenant_id', tenantId).eq('id', id);
+  if (error) throw new Error(error.message);
+
+  if (before && ctx) {
+    await logAuditEvent({
+      tenantId,
+      userId: ctx.userId,
+      action: 'recipe.deleted',
+      entityType: 'recipes',
+      entityId: id,
+      beforeData: {
+        name_he: before.nameHe,
+        type: before.type,
+        component_count: before.components.length,
+      },
+    });
+  }
 }
 
 export async function detectCycle(

@@ -1,5 +1,6 @@
 'use server';
 
+import { logAuditEvent } from '@/lib/audit/logger';
 import { createServerSupabaseClient, getAuthContext } from '@/lib/supabase/server';
 import { assertRole } from '@/lib/tenant';
 
@@ -86,6 +87,10 @@ export async function updateMenuItem(
     active: boolean;
   }>,
 ): Promise<MenuItem> {
+  const ctx = await getAuthContext();
+  const priceChanging = data.priceCents !== undefined;
+  const before = priceChanging ? await getMenuItem(tenantId, id) : null;
+
   const supabase = await createServerSupabaseClient();
   const patch: {
     name_he?: string;
@@ -110,7 +115,20 @@ export async function updateMenuItem(
     .select()
     .single();
   if (error) throw new Error(error.message);
-  return rowToMenuItem(row);
+  const updated = rowToMenuItem(row);
+
+  if (priceChanging && before && before.priceCents !== updated.priceCents && ctx) {
+    await logAuditEvent({
+      tenantId,
+      userId: ctx.userId,
+      action: 'menu_item.price_changed',
+      entityType: 'menu_items',
+      entityId: id,
+      beforeData: { price_cents: before.priceCents },
+      afterData: { price_cents: updated.priceCents },
+    });
+  }
+  return updated;
 }
 
 export async function toggleMenuItemActive(tenantId: string, id: string): Promise<MenuItem> {
@@ -131,10 +149,22 @@ export async function deleteMenuItem(tenantId: string, id: string): Promise<void
     .single();
   assertRole(membership?.role as Parameters<typeof assertRole>[0], 'owner', 'manager');
 
+  const before = await getMenuItem(tenantId, id);
   const { error } = await supabase
     .from('menu_items')
     .delete()
     .eq('tenant_id', tenantId)
     .eq('id', id);
   if (error) throw new Error(error.message);
+
+  if (before) {
+    await logAuditEvent({
+      tenantId,
+      userId: ctx.userId,
+      action: 'menu_item.deleted',
+      entityType: 'menu_items',
+      entityId: id,
+      beforeData: { name_he: before.nameHe, price_cents: before.priceCents },
+    });
+  }
 }
