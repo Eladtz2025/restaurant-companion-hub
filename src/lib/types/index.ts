@@ -22,6 +22,7 @@ export interface Ingredient {
   nameEn: string | null;
   unit: IngredientUnit;
   costPerUnitCents: number;
+  pkgQty: number | null;
   active: boolean;
   createdAt: string;
   updatedAt: string;

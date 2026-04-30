@@ -12,6 +12,7 @@ function rowToIngredient(row: Record<string, unknown>): Ingredient {
     nameEn: (row.name_en as string | null) ?? null,
     unit: row.unit as IngredientUnit,
     costPerUnitCents: row.cost_per_unit_cents as number,
+    pkgQty: (row.pkg_qty as number | null) ?? null,
     active: row.active as boolean,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
