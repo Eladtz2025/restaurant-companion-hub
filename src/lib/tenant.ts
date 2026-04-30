@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation';
 
 import { createServerSupabaseClient, getAuthContext } from './supabase/server';
 
+import type { Role } from './permissions';
+
 export type Tenant = {
   id: string;
   name: string;
@@ -13,10 +15,8 @@ export type Tenant = {
 /**
  * Resolves a tenant by slug and verifies the current user is a member.
  *
- * Fast path: if the JWT custom claim `tenant_id` matches the tenant resolved
- * by slug, we skip a second DB round-trip for membership verification.
- * Slow path: if claims are absent (e.g. token not yet refreshed after joining
- * a tenant) we fall back to a direct tenant_members query.
+ * Fast path: JWT custom claim `tenant_id` matches — skip extra DB query.
+ * Slow path: claims absent/stale — fall back to memberships table.
  *
  * Calls notFound() if the tenant doesn't exist or the user lacks access.
  */
@@ -35,16 +35,14 @@ export async function requireTenant(tenantSlug: string): Promise<Tenant> {
 
   const tenant = data as Tenant;
 
-  // Try to verify membership via JWT claims first (no extra DB query).
   const ctx = await getAuthContext();
 
   if (ctx?.tenantId === tenant.id) {
     return tenant;
   }
 
-  // Slow path: JWT claims absent or stale — verify membership in DB.
   const { data: membership, error: memberError } = await supabase
-    .from('tenant_members')
+    .from('memberships')
     .select('id')
     .eq('tenant_id', tenant.id)
     .eq('user_id', ctx?.userId ?? '')
@@ -55,4 +53,29 @@ export async function requireTenant(tenantSlug: string): Promise<Tenant> {
   }
 
   return tenant;
+}
+
+export async function getUserRole(tenantId: string, userId: string): Promise<Role | null> {
+  const supabase = await createServerSupabaseClient();
+  const { data } = await supabase
+    .from('memberships')
+    .select('role')
+    .eq('tenant_id', tenantId)
+    .eq('user_id', userId)
+    .single();
+
+  return (data?.role as Role) ?? null;
+}
+
+export class ForbiddenError extends Error {
+  constructor(message = 'אין לך הרשאה לבצע פעולה זו') {
+    super(message);
+    this.name = 'ForbiddenError';
+  }
+}
+
+export function assertRole(userRole: Role | null | undefined, ...allowedRoles: Role[]): void {
+  if (!userRole || !allowedRoles.includes(userRole)) {
+    throw new ForbiddenError();
+  }
 }

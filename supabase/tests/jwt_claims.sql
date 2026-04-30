@@ -26,7 +26,7 @@ begin
   on conflict (id) do nothing;
 
   -- membership
-  insert into public.tenant_members (tenant_id, user_id, role)
+  insert into public.memberships (tenant_id, user_id, role)
   values (
     '00000000-0000-0000-0000-000000000001',
     '00000000-0000-0000-0000-000000000002',

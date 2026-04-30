@@ -20,11 +20,11 @@ begin
   -- If the user belongs to multiple tenants, this returns the first one
   -- (oldest by created_at). The client can force a re-issue via token refresh
   -- after switching tenant context (future: pass tenant_id hint in the event).
-  select tm.tenant_id, tm.role
+  select m.tenant_id, m.role
     into v_tenant_id, v_role
-    from public.tenant_members tm
-   where tm.user_id = v_user_id
-   order by tm.created_at
+    from public.memberships m
+   where m.user_id = v_user_id
+   order by m.created_at
    limit 1;
 
   v_claims := event -> 'claims';
