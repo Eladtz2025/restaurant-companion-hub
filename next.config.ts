@@ -1,7 +1,16 @@
 import { withSentryConfig } from '@sentry/nextjs';
+import withPWA from 'next-pwa';
+
 import type { NextConfig } from 'next';
 
-const nextConfig: NextConfig = {};
+const withPWAConfig = withPWA({
+  dest: 'public',
+  disable: process.env.NEXT_PUBLIC_ENV !== 'production',
+  register: true,
+  skipWaiting: true,
+});
+
+const nextConfig: NextConfig = withPWAConfig({});
 
 export default withSentryConfig(nextConfig, {
   org: process.env.SENTRY_ORG,
