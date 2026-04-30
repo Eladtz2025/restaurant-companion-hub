@@ -1,6 +1,14 @@
 export type MenuCategory = 'appetizer' | 'main' | 'dessert' | 'drink' | 'side' | 'special';
 export type RecipeType = 'menu' | 'prep';
 export type IngredientUnit = 'kg' | 'g' | 'l' | 'ml' | 'unit' | 'pkg';
+export type IngredientCategory =
+  | 'produce'
+  | 'meat'
+  | 'fish'
+  | 'dairy'
+  | 'dry'
+  | 'alcohol'
+  | 'other';
 
 export interface MenuItem {
   id: string;
@@ -21,6 +29,7 @@ export interface Ingredient {
   nameHe: string;
   nameEn: string | null;
   unit: IngredientUnit;
+  category: IngredientCategory;
   costPerUnitCents: number;
   pkgQty: number | null;
   active: boolean;
