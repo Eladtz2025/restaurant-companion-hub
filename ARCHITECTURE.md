@@ -63,6 +63,29 @@ _TODO: Map each `task_type` → primary model → fallback chain._
 
 _TODO: Reference ADR-0009. List adapters (Tabit, OnTopo, Sumit, Marketman), their mode (api/csv/scrape), and the interface they implement._
 
+### 8.1 Adapter Interfaces
+
+Each integration is implemented as an adapter that satisfies a typed interface:
+
+| Adapter type          | Interface             | Implementations                            |
+| --------------------- | --------------------- | ------------------------------------------ |
+| POS (Tabit)           | `POSAdapter`          | `TabitAdapter`, `MockPOSAdapter`           |
+| Reservations (OnTopo) | `ReservationsAdapter` | `OnTopoAdapter`, `MockReservationsAdapter` |
+| Accounting (Sumit)    | `AccountingAdapter`   | `SumitAdapter`, `MockAccountingAdapter`    |
+| Inventory (Marketman) | `InventoryAdapter`    | `MarketmanAdapter`, `MockInventoryAdapter` |
+
+### 8.2 Implementation Rules
+
+1. **Build against the interface, not the implementation.** All screens, server actions, and Inngest jobs depend only on the adapter interface. The concrete adapter is injected via `tenant_integrations` config at runtime.
+
+2. **All screens are built against the adapter interface regardless of whether the external API is live.** A `MockAdapter` returns realistic demo data during development. Swapping to a live adapter requires no UI changes.
+
+3. **MockAdapters are never deployed to production.** They are guarded by `process.env.NEXT_PUBLIC_ENV !== 'production'`. Attempting to inject a mock adapter in production throws at startup.
+
+4. **"בקרוב" badge signals mock data.** When a screen is running against a `MockAdapter`, a `<ComingSoonBadge>` is rendered to indicate the data is not live. It disappears automatically when a real adapter is active.
+
+5. **Adapter selection is per-tenant.** A tenant with a Tabit contract uses `TabitAdapter`; a tenant without uses `MockPOSAdapter` until they connect. This means the product works end-to-end for every tenant from day one.
+
 ## 9. Observability
 
 _TODO: Logs, metrics, error tracking, AI usage dashboard._

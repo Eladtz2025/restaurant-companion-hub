@@ -82,6 +82,8 @@
 
 > ⚠️ **Critical lead time:** Formal API request to Tabit must be sent at Phase 0. By Phase 4 you need either the API, official CSV access, or a scraper ready.
 
+> **Build strategy:** UI and logic built in full during this phase. If API is unavailable at build time, screens show demo data with "בקרוב" badge. Adapter is wired when API access is confirmed.
+
 | Step | Theme                                                                                                | Builder | Prompt source               | Status |
 | ---- | ---------------------------------------------------------------------------------------------------- | ------- | --------------------------- | ------ |
 | 4.1  | Tabit adapter (API or CSV or scrape per `tenant_integrations`). Sales schema. POS adapter interface. | CC      | `PHASE-4-STEP-1-PROMPTS.md` | ⬜     |
@@ -141,6 +143,8 @@
 ## Phase 8 · OnTopo + Followup + Events
 
 > ⚠️ **Critical lead time:** Formal API request to OnTopo must be sent at Phase 0.
+
+> **Build strategy:** UI and logic built in full during this phase. If API is unavailable at build time, screens show demo data with "בקרוב" badge. Adapter is wired when API access is confirmed.
 
 | Step | Theme                                                                                                              | Builder | Prompt source               | Status |
 | ---- | ------------------------------------------------------------------------------------------------------------------ | ------- | --------------------------- | ------ |
