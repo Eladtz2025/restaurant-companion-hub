@@ -11,6 +11,7 @@
 Before triggering the orchestration:
 
 ### A. Repo
+
 - Create private GitHub repo `restaurant-os`
 - Push these files to it (already created):
   - `ARCHITECTURE.md`
@@ -20,6 +21,7 @@ Before triggering the orchestration:
   - `PHASE-0-WEEK-1-PROMPTS.md` (this file)
 
 ### B. External accounts
+
 - Supabase — create two projects: `restaurant-os-staging`, `restaurant-os-production`
 - Vercel — link to GitHub
 - Anthropic Console — API key
@@ -31,12 +33,14 @@ Before triggering the orchestration:
 - Resend — API key (optional this week)
 
 ### C. Local machine
+
 - Node 20+
 - pnpm 9+
 - Docker running
 - Supabase CLI 2+
 
 ### D. Local env
+
 - Copy `.env.example` to `.env.local`
 - Fill in all `[REQUIRED]` values
 - Confirm `.env.local` is in `.gitignore`
@@ -46,6 +50,7 @@ Before triggering the orchestration:
 ## Task 1 — Bootstrap Next.js
 
 ### Context to load
+
 - `ARCHITECTURE.md` §3 (Stack), §17 (Frontend)
 - `docs/adr/0002-supabase-platform.md`
 - `docs/adr/0003-pwa-not-native.md`
@@ -102,6 +107,7 @@ Requirements:
 10. Add `.nvmrc` with Node version `20`.
 
 Do NOT:
+
 - Install Redux, Recoil, or any global state library.
 - Install styled-components or emotion.
 - Configure Pages Router.
@@ -117,9 +123,11 @@ Do NOT:
 - [ ] `git status` is clean after committing
 
 ### Commit
+
 `feat: bootstrap Next.js 15 with TypeScript, Tailwind v4, RTL`
 
 ### Branch
+
 `feat/phase-0-week-1-task-1`
 
 ---
@@ -127,6 +135,7 @@ Do NOT:
 ## Task 2 — Code Quality Tooling
 
 ### Context to load
+
 - `package.json` (existing)
 
 ### Prompt for Claude Code
@@ -173,6 +182,7 @@ Requirements:
    - Trim trailing whitespace (except markdown)
 
 Do NOT:
+
 - Configure Stylelint.
 - Use the deprecated `.eslintrc.json` format.
 - Add airbnb or other heavy ESLint configs.
@@ -186,9 +196,11 @@ Do NOT:
 - [ ] Confirm `pre-commit` hook auto-fixes a fixable lint issue.
 
 ### Commit
+
 `chore: configure code quality tooling (ESLint, Prettier, Husky, commitlint)`
 
 ### Branch
+
 `feat/phase-0-week-1-task-2`
 
 ---
@@ -196,6 +208,7 @@ Do NOT:
 ## Task 3 — Supabase Local + Baseline Schema
 
 ### Context to load
+
 - `ARCHITECTURE.md` §4 (Multi-Tenancy), §5 (Data Model), §6 (Auth)
 - `docs/adr/0001-postgres-rls-multi-tenant.md`
 - `docs/adr/0002-supabase-platform.md`
@@ -235,9 +248,9 @@ Requirements:
    g. Trigger function `set_updated_at()` — generic trigger to update `updated_at`.
 
    h. Enable RLS on `tenants` and `memberships` with policies:
-      - `tenants`: users can `SELECT` tenants they're a member of
-      - `memberships`: users can `SELECT` their own memberships
-      - `INSERT`/`UPDATE`/`DELETE`: only via service role for now
+   - `tenants`: users can `SELECT` tenants they're a member of
+   - `memberships`: users can `SELECT` their own memberships
+   - `INSERT`/`UPDATE`/`DELETE`: only via service role for now
 
 3. Create seed data: `supabase/seed.sql`
    - 1 tenant: "Mesada Gdola" (slug: `'mesada-gdola'`)
@@ -278,6 +291,7 @@ Requirements:
 9. Create `src/lib/permissions.ts` per `ARCHITECTURE.md` §6.2.
 
 Do NOT:
+
 - Add tables for menu, recipes, inventory — those come in later phases.
 - Add custom JWT claims yet.
 - Use `SERIAL` or `BIGSERIAL`. UUIDs only.
@@ -295,9 +309,11 @@ Do NOT:
 - [ ] No SERIAL, FLOAT money, or naked TIMESTAMP exists in the migration
 
 ### Commit
+
 `feat(db): baseline schema with RLS, helpers, and seed data`
 
 ### Branch
+
 `feat/phase-0-week-1-task-3`
 
 ---
@@ -305,6 +321,7 @@ Do NOT:
 ## Task 4 — CI Workflow (GitHub Actions)
 
 ### Context to load
+
 - `package.json` (existing scripts)
 
 ### Prompt for Claude Code
@@ -364,6 +381,7 @@ Requirements:
    - Checklist items: tests added, ADR if architectural, migrations have rollback notes, RLS policies added if new tables
 
 Do NOT:
+
 - Use CircleCI or any non-GitHub-Actions provider.
 - Add deployment steps — Vercel handles that.
 - Run E2E tests yet.
@@ -378,9 +396,11 @@ Do NOT:
 - [ ] CODEOWNERS triggers review request on `supabase/migrations/` change
 
 ### Commit
+
 `ci: add GitHub Actions workflows (lint, typecheck, build, db-test)`
 
 ### Branch
+
 `feat/phase-0-week-1-task-4`
 
 ---
@@ -388,6 +408,7 @@ Do NOT:
 ## Task 5 — Observability (Sentry, PostHog, Axiom)
 
 ### Context to load
+
 - `ARCHITECTURE.md` §14 (Observability)
 - Existing `src/lib/` structure
 
@@ -428,12 +449,14 @@ Requirements:
    - Schema: `{ timestamp, level, tenant_id, user_id, action, duration_ms, ... }`
 
 4. **Unified module** at `src/lib/observability/index.ts`:
+
    ```typescript
    export { logger } from './logger';
    export { track } from './posthog';
    export { setSentryTenantContext } from './sentry';
    export { reportError } from './errors';
    ```
+
    `reportError(err, context)` fires to all 3.
 
 5. **Test endpoint** at `src/app/api/_observability-test/route.ts` (dev-only — guard with `NEXT_PUBLIC_ENV !== 'production'`):
@@ -449,6 +472,7 @@ Requirements:
 7. Update `next.config.js` to wrap with Sentry's `withSentryConfig`.
 
 Do NOT:
+
 - Enable Session Replay.
 - Track PII (names, phones, addresses).
 - Send raw error messages with user data to Sentry.
@@ -465,9 +489,11 @@ Do NOT:
 - [ ] No PII appears in any captured event (verify by inspecting one event from each service)
 
 ### Commit
+
 `feat(observability): wire up Sentry, PostHog, Axiom`
 
 ### Branch
+
 `feat/phase-0-week-1-task-5`
 
 ---
@@ -475,6 +501,7 @@ Do NOT:
 ## Task 6 — Inngest + Echo Cron
 
 ### Context to load
+
 - `ARCHITECTURE.md` §10 (Background Jobs)
 - `docs/adr/0006-inngest-jobs.md`
 
@@ -524,6 +551,7 @@ Requirements:
    - Return the trigger ID
 
 Do NOT:
+
 - Schedule the prod cron yet — only code it correctly.
 - Add real business logic to the echo function.
 - Use `setTimeout` or `setInterval` anywhere.
@@ -539,9 +567,11 @@ Do NOT:
 - [ ] No `setTimeout`/`setInterval` introduced anywhere in the codebase
 
 ### Commit
+
 `feat(jobs): inngest setup with echo cron`
 
 ### Branch
+
 `feat/phase-0-week-1-task-6`
 
 ---
@@ -549,6 +579,7 @@ Do NOT:
 ## Task 7 — README, CONTRIBUTING, and Final Docs
 
 ### Context to load
+
 - Existing repo structure (everything from Tasks 1-6)
 
 ### Prompt for Claude Code
@@ -605,6 +636,7 @@ Requirements:
    - ADR README links to ARCHITECTURE for context
 
 Do NOT:
+
 - Write a 1000-line README.
 - Duplicate content from `ARCHITECTURE.md` or `PHASING.md` — link to them.
 - Add CI badges that don't exist yet.
@@ -619,9 +651,11 @@ Do NOT:
 - [ ] `CHANGELOG.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md` all exist
 
 ### Commit
+
 `docs: add README, CONTRIBUTING, security policies, and changelog`
 
 ### Branch
+
 `feat/phase-0-week-1-task-7`
 
 ---

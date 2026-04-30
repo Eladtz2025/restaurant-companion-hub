@@ -22,6 +22,7 @@
 ## Consequences
 
 **Positive:**
+
 - **Switchable providers** — Tabit → Toast = החלפת implementation, אותו interface.
 - **Testable** — קל לעשות mock implementation לבדיקות.
 - **Multiple modes per provider** — Tabit יכול להיות API mode, CSV mode, scrape mode — אותו interface, implementation שונה.
@@ -30,12 +31,14 @@
 - **Consistent error handling** — כל adapter זורק errors באותו פורמט.
 
 **Negative:**
+
 - **Up-front design overhead** — צריך לחשוב על ה-interface לפני שמכירים את כל הספקים.
 - **"Lowest common denominator"** — לפעמים feature ייחודי לספק לא מתבטא ב-interface.  
   → Mitigation: אופציה ל-`extras` field ב-response, או metadata-based extensions.
 - **Indirection overhead** — שכבה נוספת ב-call stack.
 
 **Neutral:**
+
 - אם יום אחד נחליט להוציא adapters לשירות נפרד — הם כבר מבודדים לוגית.
 
 ## Interface Definitions
@@ -46,7 +49,7 @@
 export interface POSAdapter {
   readonly name: string;
   readonly mode: 'api' | 'csv' | 'scrape';
-  
+
   fetchSales(params: { from: Date; to: Date }): Promise<Sale[]>;
   fetchMenuItems(): Promise<MenuItemExternal[]>;
   fetchServers(): Promise<ServerExternal[]>;
@@ -56,7 +59,7 @@ export interface POSAdapter {
 export interface ReservationsAdapter {
   readonly name: string;
   readonly mode: 'api' | 'scrape';
-  
+
   fetchVisits(params: { date: Date }): Promise<Visit[]>;
   fetchUpcomingEvents(params: { from: Date; to: Date }): Promise<Event[]>;
   fetchCustomerById(externalId: string): Promise<Customer | null>;
@@ -66,7 +69,7 @@ export interface ReservationsAdapter {
 export interface AccountingAdapter {
   readonly name: string;
   readonly mode: 'api';
-  
+
   fetchInvoices(params: { from: Date; to: Date }): Promise<Invoice[]>;
   fetchPayrollSummary(month: string): Promise<PayrollSummary>;
   fetchVATReports(year: number): Promise<VATReport[]>;
@@ -76,14 +79,14 @@ export interface AccountingAdapter {
 export interface InventoryAdapter {
   readonly name: string;
   readonly mode: 'api';
-  
+
   fetchInventoryLevels(): Promise<InventoryLevel[]>;
   fetchPurchaseOrders(params: { status?: 'open' | 'closed' }): Promise<PurchaseOrder[]>;
   pushReceipt?(receipt: GoodsReceipt): Promise<{ externalId: string }>;
   healthCheck(): Promise<HealthStatus>;
 }
 
-export type HealthStatus = 
+export type HealthStatus =
   | { healthy: true; latencyMs: number }
   | { healthy: false; error: string; lastSuccessAt?: Date };
 ```
@@ -126,18 +129,21 @@ import { TabitScrapeAdapter } from './tabit/scrape';
 
 export async function getPOSAdapter(
   tenantId: string,
-  config: TenantIntegration
+  config: TenantIntegration,
 ): Promise<POSAdapter> {
   switch (config.provider) {
     case 'tabit':
       switch (config.mode) {
-        case 'api':    return new TabitApiAdapter(tenantId, config);
-        case 'csv':    return new TabitCsvAdapter(tenantId, config);
-        case 'scrape': return new TabitScrapeAdapter(tenantId, config);
+        case 'api':
+          return new TabitApiAdapter(tenantId, config);
+        case 'csv':
+          return new TabitCsvAdapter(tenantId, config);
+        case 'scrape':
+          return new TabitScrapeAdapter(tenantId, config);
       }
       break;
     case 'toast':
-      return new ToastApiAdapter(tenantId, config);  // עתידי
+      return new ToastApiAdapter(tenantId, config); // עתידי
     default:
       throw new Error(`Unknown POS provider: ${config.provider}`);
   }
@@ -164,6 +170,7 @@ CREATE TABLE tenant_integrations (
 ```
 
 לקוח יכול לעבור ספק:
+
 1. בעל המסעדה הולך ל-`/settings/integrations`
 2. רואה Tabit `active`, מוסיף Toast `inactive`
 3. מתחבר ל-Toast (auth flow)
@@ -188,7 +195,7 @@ export function normalizeTabitSale(raw: TabitSaleRaw): Sale {
     serverExternalId: raw.WaiterCode,
     totalCents: Math.round(raw.GrossTotal * 100),
     items: raw.Items.map(normalizeItem),
-    rawPayload: raw,  // נשמר ל-debug
+    rawPayload: raw, // נשמר ל-debug
   };
 }
 ```

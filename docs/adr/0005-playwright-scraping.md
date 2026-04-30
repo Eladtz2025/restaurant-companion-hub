@@ -13,6 +13,7 @@
 3. **Scraping עם credentials של הלקוח** — אוטומציה דרך browser automation.
 
 אם בוחרים scraping, יש שתי אופציות:
+
 - **Playwright** (Microsoft, modern)
 - **Puppeteer** (Google, ותיקה)
 
@@ -21,6 +22,7 @@
 **Playwright לכל ה-scraping. CSV ידני כ-fallback. תמיד מנסים API רשמי קודם.**
 
 תהליך החלטה לכל אינטגרציה חדשה:
+
 1. **Step 1:** פנייה רשמית לספק לבקשת API.
 2. **Step 2:** אם אין מענה תוך 4 שבועות — בדיקת CSV export.
 3. **Step 3:** אם אין CSV או הוא לא מכסה את הצרכים — Playwright scraping.
@@ -28,6 +30,7 @@
 ## Consequences
 
 **Positive:**
+
 - מאפשר אינטגרציה גם כשהספק לא משתף פעולה.
 - Playwright יציב מ-Puppeteer ב-2026, תמיכה רחבה יותר.
 - Selectors מודרניים (`getByRole`, `getByTestId`) פחות שבירים מ-CSS class selectors.
@@ -35,6 +38,7 @@
 - Multi-browser (Chromium, Firefox, WebKit) — אם site חוסם Chrome, יש fallback.
 
 **Negative:**
+
 - **משפטית אפור:** רוב תנאי השימוש אוסרים גישה אוטומטית. אם הלקוח מסכים לכך מפורשות זה אפור (לא שחור), אבל סיכון קיים.
 - **שביר:** כל שינוי UI בספק שובר את הסקרייפר.
 - **תחזוקה מתמשכת:** הערכה 5-15% מזמן הפיתוח לכל סקרייפר ב-rolling basis.
@@ -43,6 +47,7 @@
 - **Performance:** Playwright דורש Chromium binary בכל run — ~150MB.
 
 **Neutral:**
+
 - אפשר להחליף Playwright ב-Puppeteer בעתיד אם יידרש (API דומה).
 - Inngest מאפשר להריץ scrapers as jobs מבלי לנהל infra ידנית.
 

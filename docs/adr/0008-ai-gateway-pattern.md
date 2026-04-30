@@ -26,6 +26,7 @@
 **AI Gateway מרכזי כ-Edge Function. כל קריאת LLM עוברת דרכו. אין יוצא מהכלל.**
 
 ה-gateway אחראי על:
+
 1. **Auth + permission check** — מי קורא ומה הוא רשאי.
 2. **Budget check** — האם ה-tenant עוד בתקציב יומי.
 3. **Routing** — לפי `task_type` בוחרים model + params.
@@ -39,6 +40,7 @@
 ## Consequences
 
 **Positive:**
+
 - **Cost ceiling אכפי per tenant** — אי אפשר לחרוג מתקציב יומי.
 - **שינוי model = שינוי בקובץ אחד** (`lib/ai/routing.ts`).
 - **Caching אמיתי** — חשבונית זהה לא נסרקת פעמיים.
@@ -49,6 +51,7 @@
 - **Rate limiting per user** — מונע abuse.
 
 **Negative:**
+
 - **Single point of failure** — gateway down = AI לא עובד.  
   → Mitigation: Edge Functions של Supabase מבוזרות, uptime גבוה.
 - **Latency overhead** — ~50-100ms על כל קריאה.  
@@ -58,6 +61,7 @@
 - **Streaming** — gateway חייב לתמוך ב-streaming אם אחת הקריאות תהיה streaming. complexity נוספת.
 
 **Neutral:**
+
 - AI Gateway הוא תבנית מקובלת בתעשייה (LiteLLM, Portkey, Helicone).
 
 ## Alternatives Considered
@@ -81,7 +85,7 @@ const result = await ai.invoke({
   },
   tenantId: ctx.tenantId,
   userId: ctx.userId,
-  metadata: { documentId: doc.id },  // ל-audit
+  metadata: { documentId: doc.id }, // ל-audit
 });
 
 // result:
@@ -130,17 +134,17 @@ CREATE TABLE ai_response_cache (
 
 ## Caching Rules
 
-| Task | Cacheable | TTL |
-|---|---|---|
-| `invoice.ocr` | ✅ | 30 days |
-| `document.summarize` | ✅ | 7 days |
-| `expense.categorize_suggestion` | ✅ | 30 days |
-| `feedback.sentiment` | ✅ | 7 days |
-| `document.edit` | ❌ | — |
-| `followup.draft` | ❌ | — |
-| `brief.daily` | ❌ | — |
-| `event_quote.generate` | ❌ | — |
-| `chat.simple` | ❌ | — |
+| Task                            | Cacheable | TTL     |
+| ------------------------------- | --------- | ------- |
+| `invoice.ocr`                   | ✅        | 30 days |
+| `document.summarize`            | ✅        | 7 days  |
+| `expense.categorize_suggestion` | ✅        | 30 days |
+| `feedback.sentiment`            | ✅        | 7 days  |
+| `document.edit`                 | ❌        | —       |
+| `followup.draft`                | ❌        | —       |
+| `brief.daily`                   | ❌        | —       |
+| `event_quote.generate`          | ❌        | —       |
+| `chat.simple`                   | ❌        | —       |
 
 קאש מבוטל אם `prompt_version` השתנה — bump version של prompt → הקאש לאותה משימה נמחק.
 

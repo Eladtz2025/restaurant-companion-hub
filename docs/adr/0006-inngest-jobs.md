@@ -25,6 +25,7 @@
 ## Consequences
 
 **Positive:**
+
 - API מצוין: `inngest.createFunction({ cron: '...', retries: 3 }, ...)` ב-3 שורות.
 - Built-in observability: dashboard, logs, replays.
 - Native ל-Next.js: Inngest function = Next API route.
@@ -36,6 +37,7 @@
 - אין infra לתחזק.
 
 **Negative:**
+
 - תלות בספק חיצוני — Inngest down = jobs לא רצים.  
   → Mitigation: Inngest מאוד יציב, גם יש לו queue פנימי שמחזיק jobs.
 - מחיר עולה בקנה מידה גדול (אלפי tenants).
@@ -43,6 +45,7 @@
 - Local development דורש Inngest Dev Server (binary).
 
 **Neutral:**
+
 - אם נצטרך לעזוב — port ל-Trigger.dev או BullMQ אפשרי, אבל עבודת ימים-שבועות.
 
 ## Alternatives Considered
@@ -56,19 +59,19 @@
 
 ## Use Cases ב-Restaurant OS
 
-| Job | Trigger | Frequency |
-|---|---|---|
-| `sync.all-tenants` | cron | 04:00 IST יומי |
-| `sync.tenant` | event (`sync/tenant.requested`) | on-demand |
-| `forecast.recompute` | cron | 05:00 IST יומי |
-| `prep.generate` | cron | 05:30 IST יומי |
-| `food_cost.recompute` | cron | 06:00 IST יומי |
-| `food_cost.actual` | event (after inventory count) | on-demand |
-| `ocr.process_invoice` | event (`invoice.uploaded`) | on-demand |
-| `notification.send` | event | on-demand |
-| `integration.health_check` | cron | hourly |
-| `digest.daily_owner` | cron | 08:00 IST יומי |
-| `customer.followup_drafts` | cron | 14:00 IST יומי |
+| Job                        | Trigger                         | Frequency      |
+| -------------------------- | ------------------------------- | -------------- |
+| `sync.all-tenants`         | cron                            | 04:00 IST יומי |
+| `sync.tenant`              | event (`sync/tenant.requested`) | on-demand      |
+| `forecast.recompute`       | cron                            | 05:00 IST יומי |
+| `prep.generate`            | cron                            | 05:30 IST יומי |
+| `food_cost.recompute`      | cron                            | 06:00 IST יומי |
+| `food_cost.actual`         | event (after inventory count)   | on-demand      |
+| `ocr.process_invoice`      | event (`invoice.uploaded`)      | on-demand      |
+| `notification.send`        | event                           | on-demand      |
+| `integration.health_check` | cron                            | hourly         |
+| `digest.daily_owner`       | cron                            | 08:00 IST יומי |
+| `customer.followup_drafts` | cron                            | 14:00 IST יומי |
 
 ## Implementation Notes
 
@@ -79,15 +82,15 @@ export const inngest = new Inngest({ id: 'restaurant-os' });
 
 // inngest/jobs/prep-generate.ts
 export const generatePrepTasks = inngest.createFunction(
-  { 
+  {
     id: 'prep-generate',
     retries: 3,
-    concurrency: { limit: 10, key: 'event.data.tenantId' }
+    concurrency: { limit: 10, key: 'event.data.tenantId' },
   },
-  { cron: '30 2 * * *' },  // 05:30 IST = 02:30 UTC
+  { cron: '30 2 * * *' }, // 05:30 IST = 02:30 UTC
   async ({ step }) => {
     const tenants = await step.run('list-tenants', getActiveTenants);
-    
+
     for (const t of tenants) {
       await step.run(`tenant-${t.id}`, async () => {
         const forecast = await getForecastFor(t.id, addDays(today(), 1));
@@ -95,7 +98,7 @@ export const generatePrepTasks = inngest.createFunction(
         await insertPrepTasks(t.id, tasks);
       });
     }
-  }
+  },
 );
 ```
 
