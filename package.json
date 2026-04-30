@@ -16,7 +16,8 @@
     "db:reset": "supabase db reset",
     "db:diff": "supabase db diff -f",
     "db:test": "supabase test db",
-    "db:types": "supabase gen types typescript --local > src/lib/supabase/database.types.ts"
+    "db:types": "supabase gen types typescript --local > src/lib/supabase/database.types.ts",
+    "inngest:dev": "inngest-cli dev"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.4",
@@ -25,6 +26,7 @@
     "@supabase/supabase-js": "^2.105.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "inngest": "^4.2.6",
     "lucide-react": "^1.14.0",
     "next": "^15.3.2",
     "next-axiom": "^1.10.0",
@@ -48,6 +50,7 @@
     "eslint-config-next": "^15.3.2",
     "eslint-plugin-import": "^2.32.0",
     "husky": "^9.1.7",
+    "inngest-cli": "^1.19.0",
     "lint-staged": "^16.4.0",
     "postcss": "^8.0.0",
     "prettier": "^3.8.3",
