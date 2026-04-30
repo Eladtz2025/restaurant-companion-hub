@@ -51,6 +51,7 @@ export type Database = {
           id: string;
           name_en: string | null;
           name_he: string;
+          pkg_qty: number | null;
           tenant_id: string;
           unit: string;
           updated_at: string;
@@ -62,6 +63,7 @@ export type Database = {
           id?: string;
           name_en?: string | null;
           name_he: string;
+          pkg_qty?: number | null;
           tenant_id: string;
           unit: string;
           updated_at?: string;
@@ -73,6 +75,7 @@ export type Database = {
           id?: string;
           name_en?: string | null;
           name_he?: string;
+          pkg_qty?: number | null;
           tenant_id?: string;
           unit?: string;
           updated_at?: string;
