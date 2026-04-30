@@ -25,6 +25,7 @@
     "inngest:dev": "inngest-cli dev"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-slot": "^1.2.4",
     "@sentry/nextjs": "^10.51.0",
     "@supabase/ssr": "^0.10.2",
@@ -39,7 +40,9 @@
     "posthog-node": "^5.31.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "tailwind-merge": "^3.5.0"
+    "react-hook-form": "^7.74.0",
+    "tailwind-merge": "^3.5.0",
+    "zod": "^4.4.1"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.5.3",
