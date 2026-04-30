@@ -16,6 +16,7 @@
 **PWA בלבד ב-V1. שיקול מחדש של native רק אחרי Phase 9 (פיילוט).**
 
 קריטריונים שיצדיקו מעבר ל-native אחר כך:
+
 - צורך ב-offline אמיתי עם sync מורכב (לא רק קאש)
 - Push notifications עם reliability גבוהה (Apple מגביל ב-PWA)
 - ביצועים שלא מושגים ב-PWA (לא צפוי במוצר הזה)
@@ -24,6 +25,7 @@
 ## Consequences
 
 **Positive:**
+
 - חיסכון 4-6 חודשי פיתוח של V1.
 - Codebase אחד — בגים מתקנים פעם אחת.
 - Deploy מיידי, ללא App Store review.
@@ -32,6 +34,7 @@
 - קל לעדכן בלי להכריח התקנה מחדש.
 
 **Negative:**
+
 - Push notifications ב-iOS מוגבלים (משתפר אבל לא מושלם).
 - אין גישה ל-camera APIs מתקדמים (בעיה למימוש barcode scanner מתקדם).
 - ב-Safari, IndexedDB מוגבל ל-50MB ללא היתר. דורש בקשת persistent storage.
@@ -39,6 +42,7 @@
 - iOS מקבע שירות worker אחרי תקופת אי-שימוש.
 
 **Neutral:**
+
 - חוויה דומה ל-native ב-Android.
 - בעלי המסעדה לא תופסים את ההבדל אם UX טוב.
 

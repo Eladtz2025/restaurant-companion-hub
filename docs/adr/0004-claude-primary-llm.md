@@ -9,6 +9,7 @@
 המוצר משתמש ב-LLM עבור: עריכת מסמכים, פיירזינג של חשבוניות (OCR), ניסוח פולואו אפ ללקוחות, סיווג הוצאות, יצירת בריפים יומיים, יצירת תפריטי אירועים מקלט חופשי.
 
 צריך לבחור מודל ראשי. שיקולים:
+
 - איכות תוכן בעברית
 - יכולת לעקוב אחר הוראות מורכבות (format, RTL, terminology)
 - עלות לטוקן
@@ -28,6 +29,7 @@
 הקצאה לפי משימה ב-`lib/ai/routing.ts` (ראה ARCHITECTURE.md §7.4).
 
 ### למה Claude לרוב המשימות
+
 - איכות עברית גבוהה, שמירה על RTL בלי טעויות.
 - מערכת הוראות (system prompts) חזקה — שומר על format.
 - Tool calling יציב ומדויק.
@@ -35,12 +37,14 @@
 - Anthropic מציעה uptime SLA סולידי.
 
 ### למה Gemini ל-OCR
+
 - בנצ'מארקים פנימיים: Gemini 2.5 Pro מובילה ב-OCR עברית עם כתב יד.
 - Structured output (JSON schema) יציב.
 - Multimodal native — תמונה ו-PDF נכנסים ישירות.
 - מחיר תחרותי לעיבוד תמונות.
 
 ### למה GPT כ-fallback
+
 - חיוני שיש fallback מספק שונה — אם Anthropic נופל, המוצר לא קופא.
 - GPT-4.1 איכות סבירה, latency נמוך.
 - Anthropic ו-OpenAI לא נופלים בו-זמנית.
@@ -48,12 +52,14 @@
 ## Consequences
 
 **Positive:**
+
 - איכות גבוהה לתוכן בעברית.
 - Fallback אמיתי בין שלושה ספקים — אמינות גבוהה.
 - AI Gateway (ADR-0008) מאפשר החלפת מודל בלי שינוי קוד.
 - Anthropic נחשבת ספק אחראי, פחות סיכוני policy.
 
 **Negative:**
+
 - Claude יקר מ-Gemini Flash או GPT-4.1-mini למשימות פשוטות.  
   → Mitigation: Haiku למשימות קלות.
 - תלות בספק זר — תקלות API משפיעות מיידית.  
@@ -63,6 +69,7 @@
 - Opus יקר מאוד ($15/M input, $75/M output). שימוש מאוד מצומצם.
 
 **Neutral:**
+
 - מחירים יורדים כל 6 חודשים. בדיקה רבעונית של routing.
 - מודלים חדשים מ-Anthropic מתחלפים — AI Gateway מקל על update.
 
@@ -77,6 +84,7 @@
 ## Cost Estimate (per tenant per month)
 
 הערכה גסה לתוכן רגיל של מסעדה אחת:
+
 - 30 חשבוניות OCR @ Gemini Pro: $3
 - 60 בריפים יומיים @ Sonnet: $5
 - 100 פולואופים @ Sonnet: $4

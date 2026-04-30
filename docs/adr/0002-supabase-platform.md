@@ -15,6 +15,7 @@
 5. **Neon + Clerk + Cloudflare** — שילוב של best-of-breed
 
 קונטקסט נוסף:
+
 - אני (Elad) מנוסה ב-Supabase. הצוות שיגדל יזדקק להתמחות.
 - צריך RLS אמיתי (החלטה מ-ADR-0001).
 - צריך קצב פיתוח גבוה.
@@ -25,6 +26,7 @@
 **Supabase כפלטפורמת backend מרכזית.**
 
 מרכיבים בשימוש:
+
 - **Postgres** — DB ראשי עם RLS
 - **Supabase Auth** — אימות + JWT + MFA
 - **Supabase Storage** — קבצים (תמונות מנות, חתימות, OCR sources)
@@ -37,6 +39,7 @@ Vercel תארח את ה-Next.js frontend.
 ## Consequences
 
 **Positive:**
+
 - מהירות פיתוח גבוהה — אין צורך לחבר 5 שירותים.
 - RLS native — חלק מ-DNA של Supabase, לא bolt-on.
 - מחיר נוח עד מאות tenants.
@@ -45,6 +48,7 @@ Vercel תארח את ה-Next.js frontend.
 - קהילה גדולה, תיעוד טוב.
 
 **Negative:**
+
 - Vendor lock-in מסוים — אבל הכל Postgres + S3-compatible, אז migration אפשרי.
 - Supabase outages משפיעות על כל המערכת.
 - Edge Functions ב-Deno — פחות מערכת אקולוגית מ-Node.
@@ -52,6 +56,7 @@ Vercel תארח את ה-Next.js frontend.
 - Connection pooling רגיש (PgBouncer transaction mode בלבד עם RLS).
 
 **Neutral:**
+
 - אפשר להוציא Postgres ל-Neon/RDS אם נצטרך — Supabase לא מסתיר את ה-DB.
 - אפשר להחליף Auth ל-Clerk/Auth0 בעתיד אם יידרש.
 
@@ -66,6 +71,7 @@ Vercel תארח את ה-Next.js frontend.
 ## Migration Path
 
 אם יום אחד נצטרך לעזוב Supabase:
+
 - **Postgres** — `pg_dump`, deploy ל-Neon/RDS, מחבר ל-Supabase Auth (שאפשר להריץ self-hosted) או מחליף לאחר.
 - **Storage** — S3-compatible, migration script.
 - **Edge Functions** — דנו ב-Cloudflare Workers, port מ-Deno ל-Workers דורש refactor אבל אפשרי.

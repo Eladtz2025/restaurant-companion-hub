@@ -1,5 +1,7 @@
-import type { Metadata } from 'next';
 import { Heebo } from 'next/font/google';
+
+import type { Metadata } from 'next';
+
 import './globals.css';
 
 const heebo = Heebo({
@@ -13,11 +15,7 @@ export const metadata: Metadata = {
   description: 'מערכת הפעלה למסעדות',
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="he" dir="rtl">
       <body className={`${heebo.variable} font-sans antialiased`}>{children}</body>

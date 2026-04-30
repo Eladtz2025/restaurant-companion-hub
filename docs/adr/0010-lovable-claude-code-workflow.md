@@ -18,6 +18,7 @@
 **Hybrid workflow.** Lovable ו-Claude Code עובדים על אותו GitHub repo, עם חלוקת עבודה ברורה.
 
 ### Lovable עושה:
+
 - כל ה-screens תחת `app/(app)/[tenantSlug]/`
 - Forms (React Hook Form + Zod)
 - Tables, modals, drawers, sheets
@@ -28,6 +29,7 @@
 - Visual polish ו-styling
 
 ### Claude Code עושה:
+
 - Database schema + Migrations (`supabase/migrations/`)
 - RLS policies + pgTAP tests
 - Edge Functions (`supabase/functions/`) — AI Gateway, OCR pipeline
@@ -43,12 +45,14 @@
 - Code review של Lovable output
 
 ### במשותף:
+
 - Bug fixes שהם UI + logic
 - Performance optimizations
 
 ## Consequences
 
 **Positive:**
+
 - **Speed** — Lovable מייצר screens במהירות, Claude Code בונה את הליבה במקביל.
 - **Quality** — כל אחד עושה את מה שהוא טוב בו.
 - **Cost-effective** — מפתח אחד בני אדם + 2 AI tools = פרודוקטיביות של צוות קטן.
@@ -56,6 +60,7 @@
 - **Test coverage** — Claude Code מקפיד על tests, Lovable לא תמיד.
 
 **Negative:**
+
 - **Code style drift** — קוד מ-Lovable לא תמיד תואם ל-conventions של Claude Code.  
   → Mitigation: refactor sweeps שבועיים ע״י Claude Code.
 - **Lovable מייצר קוד shallow** — לפעמים מטפל ב-happy path בלבד, חסר error handling.  
@@ -68,15 +73,19 @@
 ## Workflow Rules
 
 ### 1. Single source of truth: GitHub
+
 שני הכלים עובדים על אותו repo. אין fork, אין clone לפלטפורמה ייחודית. הקוד שב-`main` הוא הקוד החי.
 
 ### 2. Branches נפרדים
+
 - Lovable ב-branch `lovable/feat-NNN`
 - Claude Code ב-branch `cc/feat-NNN`
 - שניהם מ-merge ל-`main` רק אחרי PR review.
 
 ### 3. Refactor sweep שבועי
+
 פעם בשבוע (יום ה'), Claude Code עושה pass של:
+
 - Type safety improvements
 - Error handling
 - Test coverage
@@ -86,6 +95,7 @@
 PR נפרד עם תיוג `chore: weekly refactor sweep`.
 
 ### 4. אסור ל-Lovable
+
 - לגעת ב-`supabase/migrations/`
 - לכתוב Edge Functions
 - לכתוב adapters או scrapers
@@ -96,14 +106,17 @@ PR נפרד עם תיוג `chore: weekly refactor sweep`.
 אם Lovable שואל לעשות אחד מאלו — refuse בעדינות והעבר ל-Claude Code.
 
 ### 5. אסור ל-Claude Code
+
 לא הרבה. Claude Code יכול לגעת בכל דבר. אבל **אם משנה UI מורכב — קודם שואל את Elad** אם זה משהו ש-Lovable יעשה טוב יותר.
 
 ### 6. PR review hierarchy
+
 - PR מ-Lovable: Claude Code reviews (אוטומטי על PR open) → Elad מאשר.
 - PR מ-Claude Code: Elad reviews ישירות.
 - PR שמשפיע על schema / RLS / security: Elad חייב לבדוק ידנית.
 
 ### 7. Conventions אכופים אוטומטית
+
 - ESLint + Prettier על pre-commit (Husky).
 - Type check חובה ב-CI.
 - כל PR חייב לעבור CI לפני merge.
@@ -115,6 +128,7 @@ PR נפרד עם תיוג `chore: weekly refactor sweep`.
 ב-Phase 8-10 — שיווי משקל. Lovable ל-screens חדשים, Claude Code ל-tooling וייצור.
 
 **מתי להחליט שLovable כבר לא נחוץ:**
+
 - קצב יצירת screens יורד מאוד.
 - Refactor sweeps מוצאים יותר ויותר בעיות בקוד שלו.
 - אתה מבלה > 50% מהזמן בלתקן Lovable במקום לבנות.
@@ -132,6 +146,7 @@ PR נפרד עם תיוג `chore: weekly refactor sweep`.
 ## Lovable-Specific Cautions
 
 מהניסיון של Elad עם Lovable:
+
 - **Lovable Cloud Storage** — לא להסתמך עליו. שמירה ב-Supabase Storage בלבד.
 - **Lovable Auth** — לא משתמשים. Supabase Auth בלבד.
 - **Lovable Edge Functions (Deno)** — אפשר, אבל הקוד מתועד ידנית ולא ב-source ראשי. עדיף Edge Functions ב-Supabase.

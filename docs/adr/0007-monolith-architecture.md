@@ -44,6 +44,7 @@ lib/
 ## Consequences
 
 **Positive:**
+
 - **Deploy יחיד, פשוט.** PR → merge → deploy. לא צריך לתאם 5 deploys.
 - **Refactoring קל.** type checking על כל הקוד בבת אחת. שינוי schema = שינוי בכל המקומות בו זמנית.
 - **Local dev מהיר.** `pnpm dev` ועובדים על הכל.
@@ -53,6 +54,7 @@ lib/
 - **Latency מינימלי בין modules** — function call לא network call.
 
 **Negative:**
+
 - **Scaling אחיד** — לא ניתן לסקייל service אחד בנפרד. Vercel serverless functions עוזרת — סקיילינג ברמת function.
 - **גבול אחד נופל = הכל יורד.** באג ב-financial יכול להפיל גם את prep.  
   → Mitigation: Error boundaries ב-frontend, try/catch ב-backend, isolation logic.
@@ -60,6 +62,7 @@ lib/
 - **Deployment time עולה ככל שהאפליקציה גדלה.** Vercel build-time יכול להגיע ל-10+ דקות.
 
 **Neutral:**
+
 - ה-modular boundaries מאפשרות יציאה ל-microservices בעתיד אם יידרש.
 
 ## Alternatives Considered

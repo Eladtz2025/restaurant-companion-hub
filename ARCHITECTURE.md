@@ -5,6 +5,7 @@
 > ADRs in `docs/adr/` are the authoritative decision log; this document explains how they fit together.
 
 > **Stack note (Lovable runtime):** The ADRs describe Next.js + Vercel as the original target. The Lovable repo runs on **TanStack Start + Cloudflare Workers**. When implementing:
+>
 > - Use `createServerFn` instead of Next.js API Routes / Server Actions.
 > - Use TanStack server routes under `src/routes/api/public/*` for webhooks instead of Supabase Edge Functions.
 > - Supabase is connected as an external project (per Elad's decision) via the Supabase Integration.
@@ -24,19 +25,19 @@ _TODO: ASCII or Mermaid diagram showing frontend ↔ Supabase ↔ Edge Functions
 
 _TODO: List every runtime dependency with the ADR that justifies it._
 
-| Layer | Technology | ADR |
-|---|---|---|
-| Frontend | TanStack Start (React 19) | — |
-| Backend platform | Supabase (external) | ADR-0002 |
-| Multi-tenancy | Postgres RLS | ADR-0001 |
-| Mobile | PWA | ADR-0003 |
-| LLM | Claude (+ Gemini OCR, GPT fallback) | ADR-0004 |
-| Scraping | Playwright | ADR-0005 |
-| Background jobs | Inngest | ADR-0006 |
-| Architecture | Modular monolith | ADR-0007 |
-| AI access | Centralized AI Gateway | ADR-0008 |
-| Integrations | Adapter pattern | ADR-0009 |
-| Dev workflow | Lovable + Claude Code hybrid | ADR-0010 |
+| Layer            | Technology                          | ADR      |
+| ---------------- | ----------------------------------- | -------- |
+| Frontend         | TanStack Start (React 19)           | —        |
+| Backend platform | Supabase (external)                 | ADR-0002 |
+| Multi-tenancy    | Postgres RLS                        | ADR-0001 |
+| Mobile           | PWA                                 | ADR-0003 |
+| LLM              | Claude (+ Gemini OCR, GPT fallback) | ADR-0004 |
+| Scraping         | Playwright                          | ADR-0005 |
+| Background jobs  | Inngest                             | ADR-0006 |
+| Architecture     | Modular monolith                    | ADR-0007 |
+| AI access        | Centralized AI Gateway              | ADR-0008 |
+| Integrations     | Adapter pattern                     | ADR-0009 |
+| Dev workflow     | Lovable + Claude Code hybrid        | ADR-0010 |
 
 ## 4. Domain Structure
 
