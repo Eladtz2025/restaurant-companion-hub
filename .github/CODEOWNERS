@@ -1,0 +1,8 @@
+# Default owner for everything
+* @eladtz2025
+
+# Migration changes require explicit review
+/supabase/migrations/ @eladtz2025
+
+# ADR changes require explicit review
+/docs/adr/ @eladtz2025
