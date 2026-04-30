@@ -1,6 +1,7 @@
 'use server';
 
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { logAuditEvent } from '@/lib/audit/logger';
+import { createServerSupabaseClient, getAuthContext } from '@/lib/supabase/server';
 
 import type { Ingredient, IngredientUnit } from '@/lib/types';
 
@@ -107,6 +108,8 @@ export async function updateIngredient(
 }
 
 export async function deleteIngredient(tenantId: string, id: string): Promise<void> {
+  const ctx = await getAuthContext();
+  const before = await getIngredient(tenantId, id);
   const supabase = await createServerSupabaseClient();
   const { error } = await supabase
     .from('ingredients')
@@ -114,6 +117,21 @@ export async function deleteIngredient(tenantId: string, id: string): Promise<vo
     .eq('tenant_id', tenantId)
     .eq('id', id);
   if (error) throw new Error(error.message);
+
+  if (before && ctx) {
+    await logAuditEvent({
+      tenantId,
+      userId: ctx.userId,
+      action: 'ingredient.deleted',
+      entityType: 'ingredients',
+      entityId: id,
+      beforeData: {
+        name_he: before.nameHe,
+        unit: before.unit,
+        cost_per_unit_cents: before.costPerUnitCents,
+      },
+    });
+  }
 }
 
 export async function bulkImportIngredients(
