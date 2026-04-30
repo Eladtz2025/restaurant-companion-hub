@@ -28,3 +28,38 @@ export async function createServerSupabaseClient() {
     },
   );
 }
+
+export type AuthContext = {
+  userId: string;
+  tenantId: string | null;
+  role: string | null;
+};
+
+/**
+ * Decodes the JWT custom claims injected by auth.custom_access_token_hook.
+ * Falls back to null claims when the user has no tenant membership yet
+ * (e.g. immediately after sign-up, before the first tenant is created).
+ */
+export async function getAuthContext(): Promise<AuthContext | null> {
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return null;
+
+  // Custom claims live in user_metadata mirror in the JWT payload.
+  // Supabase exposes them via the app_metadata field on the User object
+  // when read server-side (service role not needed — anon client returns them
+  // from the verified JWT).
+  const claims = user.app_metadata as {
+    tenant_id?: string;
+    user_role?: string;
+  };
+
+  return {
+    userId: user.id,
+    tenantId: claims.tenant_id ?? null,
+    role: claims.user_role ?? null,
+  };
+}
