@@ -66,5 +66,5 @@ export async function updatePasswordAction(formData: FormData) {
     return { error: 'שגיאה בעדכון הסיסמה. נסה שוב.' };
   }
 
-  redirect('/');
+  return { success: true as const };
 }
