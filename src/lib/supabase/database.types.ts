@@ -46,6 +46,7 @@ export type Database = {
       ingredients: {
         Row: {
           active: boolean;
+          category: string;
           cost_per_unit_cents: number;
           created_at: string;
           id: string;
@@ -58,6 +59,7 @@ export type Database = {
         };
         Insert: {
           active?: boolean;
+          category?: string;
           cost_per_unit_cents?: number;
           created_at?: string;
           id?: string;
@@ -70,6 +72,7 @@ export type Database = {
         };
         Update: {
           active?: boolean;
+          category?: string;
           cost_per_unit_cents?: number;
           created_at?: string;
           id?: string;

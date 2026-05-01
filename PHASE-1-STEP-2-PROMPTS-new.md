@@ -16,6 +16,7 @@ ls -la src/lib/actions/ingredients.ts
 ```
 
 Expected state:
+
 - Step 1.1 complete: schema, Server Actions, calculator, unit conversions, audit log all done
 - `src/lib/actions/ingredients.ts` exists with full CRUD
 - `pnpm db:test` all green
@@ -30,17 +31,20 @@ If anything is missing, stop and report.
 This step uses both Claude Code (CC) and Lovable (LV).
 
 **Claude Code handles:**
+
 - CSV parser and bulk import logic
 - Server-side validation
 - Any bug fixes in existing Server Actions
 - Tests
 
 **Lovable handles:**
+
 - All UI components: table, search, filter, forms, modals
 - RTL Hebrew styling
 - Mobile responsiveness
 
 **Workflow:**
+
 1. CC does Task 1 (CSV parser + validation hardening)
 2. CC writes a detailed Lovable prompt (Task 2) and saves it to `prompts/lovable/step-1-2-ingredients.md`
 3. Elad pastes that prompt into Lovable
@@ -52,6 +56,7 @@ This step uses both Claude Code (CC) and Lovable (LV).
 ## Task 1 — CSV Parser + Validation Hardening (Claude Code)
 
 ### Context to load
+
 - `src/lib/actions/ingredients.ts`
 - `src/lib/types/index.ts`
 - `src/lib/units/conversions.ts`
@@ -104,20 +109,24 @@ Requirements:
    - Use Postgres `ILIKE '%term%'` (simple, fast enough for < 500 ingredients)
 
 Do NOT:
+
 - Use any CSV parsing library. Pure string parsing only.
 - Fail the entire import on one bad row.
 - Allow SQL injection through CSV content (Supabase parameterized queries handle this — just verify).
 
 ### Validation
+
 - [ ] `pnpm test` — all CSV importer tests pass
 - [ ] Import a CSV with 10 ingredients → all appear in DB
 - [ ] Import a CSV with 2 bad rows + 8 good rows → 8 imported, 2 errors reported
 - [ ] `pnpm typecheck` clean
 
 ### Commit
+
 `feat(ingredients): CSV bulk importer with validation and fuzzy search`
 
 ### Branch
+
 `feat/phase-1-step-2-task-1`
 
 ---
@@ -125,6 +134,7 @@ Do NOT:
 ## Task 2 — Write Lovable Prompt (Claude Code)
 
 ### Context to load
+
 - `ARCHITECTURE.md` §17 (Frontend)
 - `docs/adr/0010-lovable-claude-code-workflow.md`
 - `src/lib/actions/ingredients.ts`
@@ -163,6 +173,7 @@ The Lovable prompt must instruct Lovable to build:
    - "מחק" (destructive) and "ביטול" buttons
 
 The Lovable prompt must also include:
+
 - All text in Hebrew
 - RTL layout (Sheet opens from right, table text right-aligned)
 - Use `useTenant()` hook for tenantId
@@ -172,20 +183,24 @@ The Lovable prompt must also include:
 - Role guard: hide add/edit/delete from `chef` and `staff`
 
 Do NOT instruct Lovable to:
+
 - Write Server Actions (CC owns those)
 - Write DB migrations
 - Use any state management library
 - Create new shadcn components not already installed
 
 ### Validation
+
 - [ ] File `prompts/lovable/step-1-2-ingredients.md` exists
 - [ ] Prompt is complete, paste-ready, and covers all 4 UI sections
 - [ ] Prompt references correct Server Action names from `src/lib/actions/ingredients.ts`
 
 ### Commit
+
 `docs(prompts): Lovable prompt for ingredients UI`
 
 ### Branch
+
 `feat/phase-1-step-2-task-2`
 
 ---
@@ -208,6 +223,7 @@ Claude Code waits. Do not proceed to Task 3 until Elad confirms Lovable is done.
 ## Task 3 — Wire + Fix (Claude Code)
 
 ### Context to load
+
 - The Lovable branch output (read all new files)
 - `src/lib/actions/ingredients.ts`
 - `src/lib/ingredients/csv-importer.ts`
@@ -248,11 +264,13 @@ Requirements:
    - Verify it's gone
 
 Do NOT:
+
 - Rewrite Lovable's UI components. Fix only what's broken.
 - Change the visual design Lovable produced.
 - Add features not in the original requirements.
 
 ### Validation
+
 - [ ] `/ingredients` page loads with real data from DB
 - [ ] Create ingredient → appears in list
 - [ ] Edit ingredient → changes reflected
@@ -265,9 +283,11 @@ Do NOT:
 - [ ] E2E test passes
 
 ### Commit
+
 `feat(ingredients): wire Lovable UI to Server Actions, fix RTL, add E2E test`
 
 ### Branch
+
 `feat/phase-1-step-2-task-3`
 
 ---
@@ -277,6 +297,7 @@ Do NOT:
 When Task 3 is committed and validated, Step 1.2 is complete.
 
 Run:
+
 - [ ] `pnpm db:test` green
 - [ ] `pnpm test` green
 - [ ] `pnpm typecheck` clean
