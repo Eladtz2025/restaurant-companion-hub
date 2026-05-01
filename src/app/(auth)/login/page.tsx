@@ -2,6 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -17,6 +18,8 @@ type FormValues = z.infer<typeof schema>;
 
 export default function LoginPage() {
   const [serverError, setServerError] = useState<string | null>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const {
     register,
@@ -30,7 +33,13 @@ export default function LoginPage() {
     formData.set('email', values.email);
     formData.set('password', values.password);
     const result = await loginAction(formData);
-    if (result?.error) setServerError(result.error);
+    if (result?.error) {
+      setServerError(result.error);
+      return;
+    }
+    const next = searchParams.get('next') || '/';
+    router.refresh();
+    router.replace(next);
   }
 
   return (

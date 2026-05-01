@@ -1,45 +1,28 @@
 ## הבעיה
 
-הסיסמה הנכונה לא משנה — הרישום נכשל כי משתנה הסביבה `NEXT_PUBLIC_SUPABASE_URL` מצביע על **כתובת לוח־הבקרה של Supabase** במקום על **כתובת ה־API של הפרויקט**.
+מה־Supabase auth logs רואים שההתחברות מצליחה (`POST /token` → 200, event `Login`), אבל המשתמש נשאר בדף `/login`. ב־runtime errors מופיע `UNHANDLED_PROMISE_REJECTION: NEXT_REDIRECT`.
 
-ערך נוכחי (שגוי):
-```
-https://supabase.com/dashboard/project/<project-ref>
-```
+הסיבה: `loginAction` הוא server action שמסיים ב־`redirect('/')`. הפונקציה `redirect()` של Next.js עובדת על ידי זריקת error מיוחד (`NEXT_REDIRECT`). כש־client component מבצע `await loginAction(...)` ואז קורא `result?.error`, ה־`NEXT_REDIRECT` נתפס כ־unhandled rejection במקום להוביל לניווט. בנוסף, הקריאה הזו לא מבצעת `router.refresh()` כדי שה־middleware יראה את ה־session cookies החדשים.
 
-מה שצריך להיות:
-```
-https://<project-ref>.supabase.co
-```
+## התיקון
 
-איך אומת: בדיקת `curl` ישירה ל־`$NEXT_PUBLIC_SUPABASE_URL/auth/v1/signup` החזירה HTML של דאשבורד Supabase במקום JSON של auth. בנוסף `auth.users` ריק (0 משתמשים), אין רשומות ב־`auth_logs`, והבקשה פשוט לא מגיעה אל שירות ה־Auth. ב־`signupAction` כל שגיאה לא־מזוהה נופלת ל־"שגיאה ביצירת החשבון. נסה שוב." — וזה בדיוק מה שאת/ה רואה.
+### 1. `src/app/(auth)/login/actions.ts` - `loginAction`
+- להחזיר `{ success: true }` במקום לקרוא ל־`redirect('/')`. הניווט יקרה בצד הלקוח אחרי שה־cookies נשמרו.
 
-## תיקון
+### 2. `src/app/(auth)/login/page.tsx`
+- לקרוא ל־`useRouter` ו־`useSearchParams` מ־`next/navigation`.
+- אחרי `loginAction` מוצלח: `router.refresh()` ואז `router.push(next ?? '/')` (כאשר `next` נלקח מה־query param שכבר קיים ב־URL `?next=...`).
 
-### צעד 1 — לעדכן את ה־secret (פעולה שלך, מחוץ לקוד)
+### 3. אותו תיקון גם ל־`signupAction` ו־`updatePasswordAction` (אותה בעיה פוטנציאלית) - להחזיר success ולתת ל־client לנווט.
 
-בלוח־הבקרה של Supabase: **Project Settings → API → Project URL**. להעתיק את הערך שנראה כך:
+## למה זה יפתור
 
-```
-https://<project-ref>.supabase.co
-```
+- ה־server action יסיים נקי, ה־cookies של הסשן ייכתבו דרך ה־`setAll` של ה־cookieStore.
+- `router.refresh()` יגרום ל־middleware לרוץ מחדש עם ה־cookies החדשים ולזהות את המשתמש.
+- `router.push(next)` ינווט ליעד המקורי (ב־case שלך `/`).
 
-ב־Lovable: **Project Settings → Environment Variables** — לעדכן את `NEXT_PUBLIC_SUPABASE_URL` לערך הנכון. לוודא ש־`NEXT_PUBLIC_SUPABASE_ANON_KEY` עדיין מכיל את ה־**anon public** key מאותו עמוד.
+## בדיקה לאחר היישום
 
-(אופציונלי: לעדכן באותו אופן `SUPABASE_URL` ו־`VITE_SUPABASE_URL` כדי לשמור עקביות, אבל הקוד עצמו קורא רק ל־`NEXT_PUBLIC_*`.)
-
-### צעד 2 — בדיקת שפיות אחרי הריענון
-
-לטעון מחדש את ה־preview, לנסות הרשמה. צפוי:
-- אין יותר באנר "שגיאה ביצירת החשבון"
-- redirect ל־`/onboarding`
-- שורה חדשה ב־`auth.users`
-
-### צעד 3 — שיפור הודעת השגיאה (שינוי קוד קטן, אופציונלי אך מומלץ)
-
-ב־`src/app/(auth)/login/actions.ts`, להוסיף `console.error(error)` בתוך כל ענף `if (error)` של `signupAction` / `loginAction` / `resetPasswordAction` / `updatePasswordAction`, ולהדפיס את `error.message` בתוך ההודעה הגנרית בזמן פיתוח. זה ימנע מצב עתידי שבו תקלת תצורה מציגה הודעה כללית בלי שום רמז ב־logs.
-
-## הערות
-
-- ה־service role key אסור לחלוטין להגיע ל־`NEXT_PUBLIC_*`. רק ה־anon key מותר שם.
-- אחרי התיקון, אם תהיה שגיאה אמיתית של Supabase (למשל סיסמה חלשה או email כבר רשום), הקוד הקיים כבר מטפל בזה ומחזיר הודעה ברורה בעברית.
+1. לוגאאוט.
+2. כניסה מחדש עם המייל והסיסמה.
+3. צריך להגיע ל־`/` (או ליעד שב־`?next=`) מיד אחרי הלחיצה על "התחבר".

@@ -1,6 +1,6 @@
 'use server';
 
-import { redirect } from 'next/navigation';
+
 
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
@@ -15,7 +15,7 @@ export async function loginAction(formData: FormData) {
     return { error: 'אימייל או סיסמה שגויים' };
   }
 
-  redirect('/');
+  return { success: true as const };
 }
 
 export async function signupAction(formData: FormData) {
@@ -38,7 +38,7 @@ export async function signupAction(formData: FormData) {
     return { error: `שגיאה ביצירת החשבון: ${error.message}` };
   }
 
-  redirect('/onboarding');
+  return { success: true as const, redirectTo: '/onboarding' };
 }
 
 export async function resetPasswordAction(formData: FormData) {
@@ -66,5 +66,5 @@ export async function updatePasswordAction(formData: FormData) {
     return { error: 'שגיאה בעדכון הסיסמה. נסה שוב.' };
   }
 
-  redirect('/');
+  return { success: true as const };
 }
