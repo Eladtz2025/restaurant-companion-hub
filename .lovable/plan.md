@@ -1,28 +1,16 @@
-## הבעיה
+לא נראה שצריך להמתין עוד כמה דקות. לפי הלוגים, Supabase מאשר את ההתחברות בהצלחה, אבל האפליקציה עדיין נשארת/חוזרת ל־`/login?next=/`. כלומר הבעיה היא בסנכרון session/cookies ובניווט אחרי ההתחברות, לא בזמן טעינה.
 
-מה־Supabase auth logs רואים שההתחברות מצליחה (`POST /token` → 200, event `Login`), אבל המשתמש נשאר בדף `/login`. ב־runtime errors מופיע `UNHANDLED_PROMISE_REJECTION: NEXT_REDIRECT`.
+התיקון שאבצע:
 
-הסיבה: `loginAction` הוא server action שמסיים ב־`redirect('/')`. הפונקציה `redirect()` של Next.js עובדת על ידי זריקת error מיוחד (`NEXT_REDIRECT`). כש־client component מבצע `await loginAction(...)` ואז קורא `result?.error`, ה־`NEXT_REDIRECT` נתפס כ־unhandled rejection במקום להוביל לניווט. בנוסף, הקריאה הזו לא מבצעת `router.refresh()` כדי שה־middleware יראה את ה־session cookies החדשים.
+1. לשנות את מסך ההתחברות כך שההתחברות תתבצע בצד הדפדפן עם `createBrowserSupabaseClient().auth.signInWithPassword(...)`, במקום Server Action שמחזיר session דרך תגובת שרת.
+2. אחרי התחברות מוצלחת, לוודא שה־session נקלט בדפדפן באמצעות `supabase.auth.getUser()` / `getSession()`.
+3. לבצע ניווט מלא ובטוח לכתובת היעד (`next` או `/`) בעזרת `window.location.assign(...)`, כדי שה־middleware יקבל את ה־cookies המעודכנים כבר בבקשה הבאה.
+4. להשאיר הודעת שגיאה בעברית אם המייל/סיסמה לא נכונים או אם אין session אחרי התחברות.
+5. להסיר/לא להשתמש ב־`loginAction` מהקומפוננטה כדי שלא תהיה התנגשות בין Server Action לבין ניווט client-side.
+6. לבדוק גם את ה־flow של `signup` ברמה בסיסית: אם הוא מחזיר הצלחה אבל המסך לא מציג כלום, אוסיף הודעת “בדוק את המייל לאישור החשבון” כדי למנוע בלבול.
 
-## התיקון
+פרטים טכניים:
 
-### 1. `src/app/(auth)/login/actions.ts` - `loginAction`
-- להחזיר `{ success: true }` במקום לקרוא ל־`redirect('/')`. הניווט יקרה בצד הלקוח אחרי שה־cookies נשמרו.
-
-### 2. `src/app/(auth)/login/page.tsx`
-- לקרוא ל־`useRouter` ו־`useSearchParams` מ־`next/navigation`.
-- אחרי `loginAction` מוצלח: `router.refresh()` ואז `router.push(next ?? '/')` (כאשר `next` נלקח מה־query param שכבר קיים ב־URL `?next=...`).
-
-### 3. אותו תיקון גם ל־`signupAction` ו־`updatePasswordAction` (אותה בעיה פוטנציאלית) - להחזיר success ולתת ל־client לנווט.
-
-## למה זה יפתור
-
-- ה־server action יסיים נקי, ה־cookies של הסשן ייכתבו דרך ה־`setAll` של ה־cookieStore.
-- `router.refresh()` יגרום ל־middleware לרוץ מחדש עם ה־cookies החדשים ולזהות את המשתמש.
-- `router.push(next)` ינווט ליעד המקורי (ב־case שלך `/`).
-
-## בדיקה לאחר היישום
-
-1. לוגאאוט.
-2. כניסה מחדש עם המייל והסיסמה.
-3. צריך להגיע ל־`/` (או ליעד שב־`?next=`) מיד אחרי הלחיצה על "התחבר".
+- כרגע רואים בקשות `POST /login?next=%2F` שחוזרות `200`, ואז בקשות חוזרות ל־`GET /login?next=%2F`; זה סימן שהאימות עצמו מצליח, אבל ה־middleware לא מזהה session תקף בבקשה הבאה.
+- שימוש ב־`createBrowserClient` של `@supabase/ssr` מתאים במיוחד ל־Next.js + middleware, כי הוא מעדכן את ה־auth cookies בצד הדפדפן.
+- ניווט מלא אחרי login עדיף כאן על `router.replace` מיד אחרי Server Action, כי הוא מונע race condition שבו ה־middleware רץ לפני שהדפדפן שלח cookies מעודכנים.
