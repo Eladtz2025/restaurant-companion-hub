@@ -2,12 +2,12 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { loginAction } from './actions';
+import { createBrowserSupabaseClient } from '@/lib/supabase/browser';
 
 const schema = z.object({
   email: z.string().email('נדרש מייל תקין'),
@@ -18,7 +18,6 @@ type FormValues = z.infer<typeof schema>;
 
 export default function LoginPage() {
   const [serverError, setServerError] = useState<string | null>(null);
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   const {
@@ -29,17 +28,29 @@ export default function LoginPage() {
 
   async function onSubmit(values: FormValues) {
     setServerError(null);
-    const formData = new FormData();
-    formData.set('email', values.email);
-    formData.set('password', values.password);
-    const result = await loginAction(formData);
-    if (result?.error) {
-      setServerError(result.error);
+    const supabase = createBrowserSupabaseClient();
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: values.email,
+      password: values.password,
+    });
+
+    if (error) {
+      if (error.message.toLowerCase().includes('email not confirmed')) {
+        setServerError('עליך לאשר את כתובת האימייל לפני התחברות. בדוק את תיבת הדואר.');
+      } else {
+        setServerError('אימייל או סיסמה שגויים');
+      }
       return;
     }
+
+    if (!data.session) {
+      setServerError('לא הצלחנו ליצור Session. נסה שוב.');
+      return;
+    }
+
     const next = searchParams.get('next') || '/';
-    router.refresh();
-    router.replace(next);
+    // Full navigation so middleware sees the freshly-set auth cookies.
+    window.location.assign(next);
   }
 
   return (
