@@ -1,12 +1,13 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { createBrowserClient } from '@supabase/ssr';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+
+import { createBrowserSupabaseClient } from '@/lib/supabase/browser';
 
 const schema = z.object({
   email: z.string().email('נדרש מייל תקין'),
@@ -16,6 +17,14 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const searchParams = useSearchParams();
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -27,19 +36,23 @@ export default function LoginPage() {
 
   async function onSubmit(values: FormValues) {
     setServerError(null);
-
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    );
-
-    const { error } = await supabase.auth.signInWithPassword({
+    const supabase = createBrowserSupabaseClient();
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: values.email,
       password: values.password,
     });
 
     if (error) {
-      setServerError('אימייל או סיסמה שגויים');
+      if (error.message.toLowerCase().includes('email not confirmed')) {
+        setServerError('עליך לאשר את כתובת האימייל לפני התחברות. בדוק את תיבת הדואר.');
+      } else {
+        setServerError('אימייל או סיסמה שגויים');
+      }
+      return;
+    }
+
+    if (!data.session) {
+      setServerError('לא הצלחנו ליצור Session. נסה שוב.');
       return;
     }
 

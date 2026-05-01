@@ -14,7 +14,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { importIngredientsAction, type ImportResult } from '@/lib/actions/ingredients-import';
+import { importIngredientsAction } from '@/lib/actions/ingredients-import';
+
+import type { ImportResult } from '@/lib/actions/ingredients.types';
 
 type Props = {
   open: boolean;
@@ -84,9 +86,9 @@ export function ImportCSVDialog({ open, onOpenChange, tenantId }: Props) {
               type="file"
               accept=".csv,text/csv"
               onChange={handleFile}
-              className="text-sm file:me-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary-foreground"
+              className="file:bg-primary file:text-primary-foreground text-sm file:me-3 file:rounded-md file:border-0 file:px-3 file:py-2 file:text-sm file:font-medium"
             />
-            {fileName && <p className="text-xs text-muted-foreground">נבחר: {fileName}</p>}
+            {fileName && <p className="text-muted-foreground text-xs">נבחר: {fileName}</p>}
           </div>
 
           {result && (
@@ -99,9 +101,9 @@ export function ImportCSVDialog({ open, onOpenChange, tenantId }: Props) {
               </ul>
               {result.errors.length > 0 && (
                 <details className="mt-3">
-                  <summary className="cursor-pointer text-destructive">הצג שגיאות</summary>
-                  <ul className="mt-2 max-h-40 space-y-1 overflow-auto text-xs text-destructive">
-                    {result.errors.map((e, i) => (
+                  <summary className="text-destructive cursor-pointer">הצג שגיאות</summary>
+                  <ul className="text-destructive mt-2 max-h-40 space-y-1 overflow-auto text-xs">
+                    {result.errors.map((e: string, i: number) => (
                       <li key={i}>{e}</li>
                     ))}
                   </ul>
