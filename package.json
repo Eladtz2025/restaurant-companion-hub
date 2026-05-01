@@ -90,5 +90,8 @@
     "*.{json,md,yml,yaml,css}": [
       "prettier --write"
     ]
-  }
+  },
+  "workspaces": [
+    "."
+  ]
 }
