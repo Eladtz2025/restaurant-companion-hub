@@ -14,7 +14,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { importIngredientsAction, type ImportResult } from '@/lib/actions/ingredients-import';
+import { importIngredientsAction } from '@/lib/actions/ingredients-import';
+import type { ImportResult } from '@/lib/actions/ingredients.types';
 
 type Props = {
   open: boolean;
