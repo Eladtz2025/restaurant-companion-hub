@@ -31,10 +31,11 @@ export async function signupAction(formData: FormData) {
   });
 
   if (error) {
+    console.error('[signupAction] supabase signUp error:', error);
     if (error.message.includes('already registered')) {
       return { error: 'כתובת האימייל כבר רשומה במערכת' };
     }
-    return { error: 'שגיאה ביצירת החשבון. נסה שוב.' };
+    return { error: `שגיאה ביצירת החשבון: ${error.message}` };
   }
 
   redirect('/onboarding');
