@@ -15,7 +15,7 @@ export async function loginAction(formData: FormData) {
     return { error: 'אימייל או סיסמה שגויים' };
   }
 
-  redirect('/');
+  return { success: true as const };
 }
 
 export async function signupAction(formData: FormData) {
