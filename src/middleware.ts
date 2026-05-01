@@ -9,6 +9,7 @@ const PUBLIC_PATHS = [
   '/mfa/setup',
   '/api/inngest',
   '/api/_',
+  '/api/auth/debug',
   '/_next',
   '/favicon',
 ];
