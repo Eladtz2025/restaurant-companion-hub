@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 
 import { AppShell } from '@/components/shared/AppShell';
+import { Toaster } from '@/components/ui/sonner';
 import { TenantProvider } from '@/contexts/TenantContext';
 import { getAuthContext } from '@/lib/supabase/server';
 import { getUserRole, requireTenant } from '@/lib/tenant';
@@ -35,6 +36,7 @@ export default async function TenantLayout({ children, params }: LayoutProps) {
       <AppShell tenantSlug={tenant.slug} userRole={userRole as Role}>
         {children}
       </AppShell>
+      <Toaster />
     </TenantProvider>
   );
 }
