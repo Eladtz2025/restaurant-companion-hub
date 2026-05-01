@@ -1,21 +1,11 @@
 'use server';
 
-import { z } from 'zod';
-
 import { logAuditEvent } from '@/lib/audit/logger';
 import { createServerSupabaseClient, getAuthContext } from '@/lib/supabase/server';
 
+import { IngredientSchema, type IngredientInput } from './ingredients.types';
+
 import type { Ingredient, IngredientCategory, IngredientUnit } from '@/lib/types';
-
-export const IngredientSchema = z.object({
-  name_he: z.string().min(1).max(100),
-  unit: z.enum(['kg', 'g', 'l', 'ml', 'unit', 'pkg']),
-  category: z.enum(['produce', 'meat', 'fish', 'dairy', 'dry', 'alcohol', 'other']),
-  current_cost_per_unit_cents: z.number().int().min(0).optional(),
-  pkg_qty: z.number().positive().optional(),
-});
-
-export type IngredientInput = z.infer<typeof IngredientSchema>;
 
 type Result<T> = { data: T } | { error: string };
 
