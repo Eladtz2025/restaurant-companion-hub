@@ -16,6 +16,7 @@ node -e "const jwt = require('jsonwebtoken'); console.log('jwt ok')" 2>/dev/null
 ```
 
 Expected state:
+
 - Auth pages exist: `/login`, `/signup`, `/reset-password`, `/mfa/setup`, `/mfa/challenge`
 - Middleware protects `/(app)/` routes
 - JWT custom claims working (tenant_id + role in token)
@@ -28,6 +29,7 @@ If anything is missing, stop and report.
 ## Task 1 — App Shell Layout (Claude Code)
 
 ### Context to load
+
 - `ARCHITECTURE.md` §17 (Frontend structure)
 - `docs/adr/0007-monolith-architecture.md`
 - `docs/adr/0010-lovable-claude-code-workflow.md`
@@ -93,11 +95,13 @@ Requirements:
    - All other nav items as empty placeholder pages
 
 Do NOT:
+
 - Build the actual content of any page — placeholders only.
 - Add animations or transitions yet — pure functional layout.
 - Use any icon library other than `lucide-react`.
 
 ### Validation
+
 - [ ] Log in as `owner@example.com`, see the full app shell
 - [ ] Sidebar shows correct nav items for owner role
 - [ ] Log in as `chef@example.com`, sidebar shows only chef-visible items
@@ -107,9 +111,11 @@ Do NOT:
 - [ ] Logout button works
 
 ### Commit
+
 `feat(shell): app shell with sidebar, topbar, tenant switcher`
 
 ### Branch
+
 `feat/phase-0-step-3-task-1`
 
 ---
@@ -117,6 +123,7 @@ Do NOT:
 ## Task 2 — shadcn/ui RTL Audit (Claude Code)
 
 ### Context to load
+
 - `ARCHITECTURE.md` §17.2 (RTL)
 - Existing `src/components/ui/` (shadcn installs)
 
@@ -127,6 +134,7 @@ Install and audit all shadcn/ui components that will be used in Phase 1-3. Verif
 Requirements:
 
 1. Install these shadcn/ui components:
+
    ```bash
    pnpm dlx shadcn@latest add button input label form select textarea dialog sheet table badge avatar dropdown-menu tooltip popover command separator skeleton card tabs alert
    ```
@@ -162,11 +170,13 @@ Requirements:
    - Keep only 2 brand colors + gray scale. No color explosion.
 
 Do NOT:
+
 - Modify shadcn component source files directly — override via CSS variables only.
 - Add custom animations.
 - Use color values not in the Tailwind config.
 
 ### Validation
+
 - [ ] All 20 components render without console errors
 - [ ] Component showcase page renders at `/_dev/components` in dev mode
 - [ ] No RTL layout issues visible (all items in the showcase page look correct in Hebrew)
@@ -174,9 +184,11 @@ Do NOT:
 - [ ] `formatDate(new Date('2026-04-30'))` returns Hebrew date string
 
 ### Commit
+
 `feat(ui): install shadcn components, fix RTL issues, add UI utilities`
 
 ### Branch
+
 `feat/phase-0-step-3-task-2`
 
 ---
@@ -184,6 +196,7 @@ Do NOT:
 ## Task 3 — PWA Configuration (Claude Code)
 
 ### Context to load
+
 - `ARCHITECTURE.md` §17.4 (PWA)
 - `docs/adr/0003-pwa-not-native.md`
 
@@ -194,11 +207,13 @@ Make the app installable as a Progressive Web App with offline fallback.
 Requirements:
 
 1. Install PWA package:
+
    ```bash
    pnpm add next-pwa
    ```
 
 2. Create `public/manifest.json`:
+
    ```json
    {
      "name": "Restaurant OS",
@@ -214,15 +229,22 @@ Requirements:
      "icons": [
        { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
        { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
-       { "src": "/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+       {
+         "src": "/icons/icon-512-maskable.png",
+         "sizes": "512x512",
+         "type": "image/png",
+         "purpose": "maskable"
+       }
      ]
    }
    ```
 
 3. Create placeholder icons (simple solid color PNG, 192x192 and 512x512) in `public/icons/`. Use a Node script to generate them:
+
    ```bash
    node scripts/generate-icons.js
    ```
+
    Generate the script that uses `sharp` or `canvas` to create simple placeholder icons.
 
 4. Configure `next-pwa` in `next.config.js`:
@@ -250,11 +272,13 @@ Requirements:
    - Create `src/components/shared/InstallPrompt.tsx`
 
 Do NOT:
+
 - Enable PWA in development (disable: true for dev).
 - Use aggressive caching that breaks auth flows.
 - Show install prompt on first visit.
 
 ### Validation
+
 - [ ] `pnpm build` succeeds with PWA config
 - [ ] `manifest.json` accessible at `/manifest.json`
 - [ ] Icons load at `/icons/icon-192.png` and `/icons/icon-512.png`
@@ -263,9 +287,11 @@ Do NOT:
 - [ ] Offline page shows when network is disconnected
 
 ### Commit
+
 `feat(pwa): PWA manifest, icons, offline fallback, wake lock`
 
 ### Branch
+
 `feat/phase-0-step-3-task-3`
 
 ---
@@ -273,6 +299,7 @@ Do NOT:
 ## Task 4 — Home Dashboard Skeleton (Lovable + Claude Code)
 
 ### Context to load
+
 - `ARCHITECTURE.md` §17 (Frontend)
 - `src/components/shared/` (existing shell components)
 - `src/contexts/TenantContext.tsx`
@@ -321,11 +348,13 @@ Requirements:
    - This proves Realtime works before we need it for real
 
 Do NOT:
+
 - Fetch real data yet — all values are hardcoded placeholders.
 - Build charts — Phase 4+ only.
 - Add complex animations.
 
 ### Validation
+
 - [ ] Owner sees 4 KPI cards + activity feed + alerts
 - [ ] Chef sees prep + checklist + waste cards
 - [ ] Staff sees their specific view
@@ -334,9 +363,11 @@ Do NOT:
 - [ ] Empty states render correctly with Hebrew text
 
 ### Commit
+
 `feat(dashboard): role-based home dashboard skeleton`
 
 ### Branch
+
 `feat/phase-0-step-3-task-4`
 
 ---
@@ -346,6 +377,7 @@ Do NOT:
 When Task 4 is committed, Phase 0 is complete.
 
 Run the Phase 0 Definition of Done check:
+
 - [ ] New developer can onboard in ≤ 50 min (test by following README from scratch)
 - [ ] Two test tenants exist, user can switch between them
 - [ ] RLS verified by pgTAP (run `pnpm db:test`)
