@@ -1,16 +1,26 @@
-לא נראה שצריך להמתין עוד כמה דקות. לפי הלוגים, Supabase מאשר את ההתחברות בהצלחה, אבל האפליקציה עדיין נשארת/חוזרת ל־`/login?next=/`. כלומר הבעיה היא בסנכרון session/cookies ובניווט אחרי ההתחברות, לא בזמן טעינה.
+# תיקון: לא רואים את מסך הלוגין
 
-התיקון שאבצע:
+## הבעיה
 
-1. לשנות את מסך ההתחברות כך שההתחברות תתבצע בצד הדפדפן עם `createBrowserSupabaseClient().auth.signInWithPassword(...)`, במקום Server Action שמחזיר session דרך תגובת שרת.
-2. אחרי התחברות מוצלחת, לוודא שה־session נקלט בדפדפן באמצעות `supabase.auth.getUser()` / `getSession()`.
-3. לבצע ניווט מלא ובטוח לכתובת היעד (`next` או `/`) בעזרת `window.location.assign(...)`, כדי שה־middleware יקבל את ה־cookies המעודכנים כבר בבקשה הבאה.
-4. להשאיר הודעת שגיאה בעברית אם המייל/סיסמה לא נכונים או אם אין session אחרי התחברות.
-5. להסיר/לא להשתמש ב־`loginAction` מהקומפוננטה כדי שלא תהיה התנגשות בין Server Action לבין ניווט client-side.
-6. לבדוק גם את ה־flow של `signup` ברמה בסיסית: אם הוא מחזיר הצלחה אבל המסך לא מציג כלום, אוסיף הודעת “בדוק את המייל לאישור החשבון” כדי למנוע בלבול.
+`src/app/page.tsx` מבצע כרגע `redirect('/api/setup')` — שזה endpoint של API שמחזיר JSON, לא דף UI. לכן כשנכנסים ל-`/` לא רואים את מסך הכניסה אלא תגובה של API (או שגיאה).
 
-פרטים טכניים:
+ה-middleware אמנם אמור להפנות ל-`/login` כשאין משתמש, אבל מכיוון ש-`page.tsx` עצמו מבצע redirect מיידי לפני רינדור, החוויה נשברת.
 
-- כרגע רואים בקשות `POST /login?next=%2F` שחוזרות `200`, ואז בקשות חוזרות ל־`GET /login?next=%2F`; זה סימן שהאימות עצמו מצליח, אבל ה־middleware לא מזהה session תקף בבקשה הבאה.
-- שימוש ב־`createBrowserClient` של `@supabase/ssr` מתאים במיוחד ל־Next.js + middleware, כי הוא מעדכן את ה־auth cookies בצד הדפדפן.
-- ניווט מלא אחרי login עדיף כאן על `router.replace` מיד אחרי Server Action, כי הוא מונע race condition שבו ה־middleware רץ לפני שהדפדפן שלח cookies מעודכנים.
+## השינוי
+
+### `src/app/page.tsx`
+להחליף ב-Server Component שמבצע:
+1. יצירת Supabase server client (קריאת cookies).
+2. `supabase.auth.getUser()`.
+3. אם אין user → `redirect('/login')`.
+4. אם יש user → לטעון את ה-`memberships` של המשתמש (tenant_id + slug) ולהפנות ל-`/{firstTenantSlug}`.
+5. אם למשתמש אין שום tenant → `redirect('/api/setup')` (מצב onboarding קיים).
+
+### למה זה פותר
+- כניסה ל-`/` ללא session → הפניה מיידית ל-`/login` ורואים את הטופס.
+- אחרי התחברות מוצלחת, `window.location.assign('/')` ב-login יגיע לדף הבית, יזהה session, ויפנה ל-tenant הנכון.
+
+## קבצים שיושפעו
+- `src/app/page.tsx` — שכתוב מלא (קצר, ~30 שורות).
+
+אין שינויים ב-middleware, ב-DB, או בקבצי auth אחרים.
