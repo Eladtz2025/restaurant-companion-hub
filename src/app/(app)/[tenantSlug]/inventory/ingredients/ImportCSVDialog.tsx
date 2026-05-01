@@ -14,7 +14,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { importIngredientsAction, type ImportResult } from '@/lib/actions/ingredients-import';
+import { importIngredientsAction } from '@/lib/actions/ingredients-import';
+import type { ImportResult } from '@/lib/actions/ingredients.types';
 
 type Props = {
   open: boolean;
@@ -101,7 +102,7 @@ export function ImportCSVDialog({ open, onOpenChange, tenantId }: Props) {
                 <details className="mt-3">
                   <summary className="cursor-pointer text-destructive">הצג שגיאות</summary>
                   <ul className="mt-2 max-h-40 space-y-1 overflow-auto text-xs text-destructive">
-                    {result.errors.map((e, i) => (
+                    {result.errors.map((e: string, i: number) => (
                       <li key={i}>{e}</li>
                     ))}
                   </ul>
