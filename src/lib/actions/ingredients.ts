@@ -3,7 +3,7 @@
 import { logAuditEvent } from '@/lib/audit/logger';
 import { createServerSupabaseClient, getAuthContext } from '@/lib/supabase/server';
 
-import { IngredientSchema, type IngredientInput } from './ingredients.types';
+import { IngredientSchema } from './ingredients.types';
 
 import type { Ingredient, IngredientCategory, IngredientUnit } from '@/lib/types';
 
