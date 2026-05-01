@@ -1,12 +1,12 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import { createBrowserClient } from '@supabase/ssr';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-
-import { loginAction } from './actions';
 
 const schema = z.object({
   email: z.string().email('נדרש מייל תקין'),
@@ -16,6 +16,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export default function LoginPage() {
+  const searchParams = useSearchParams();
   const [serverError, setServerError] = useState<string | null>(null);
 
   const {
@@ -26,11 +27,24 @@ export default function LoginPage() {
 
   async function onSubmit(values: FormValues) {
     setServerError(null);
-    const formData = new FormData();
-    formData.set('email', values.email);
-    formData.set('password', values.password);
-    const result = await loginAction(formData);
-    if (result?.error) setServerError(result.error);
+
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    );
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: values.email,
+      password: values.password,
+    });
+
+    if (error) {
+      setServerError('אימייל או סיסמה שגויים');
+      return;
+    }
+
+    const next = searchParams.get('next') ?? '/';
+    window.location.assign(next);
   }
 
   return (
