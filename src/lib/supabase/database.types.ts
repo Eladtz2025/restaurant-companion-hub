@@ -138,6 +138,7 @@ export type Database = {
           name_he: string;
           pos_external_id: string | null;
           price_cents: number;
+          recipe_id: string | null;
           tenant_id: string;
           updated_at: string;
         };
@@ -150,6 +151,7 @@ export type Database = {
           name_he: string;
           pos_external_id?: string | null;
           price_cents: number;
+          recipe_id?: string | null;
           tenant_id: string;
           updated_at?: string;
         };
@@ -162,6 +164,7 @@ export type Database = {
           name_he?: string;
           pos_external_id?: string | null;
           price_cents?: number;
+          recipe_id?: string | null;
           tenant_id?: string;
           updated_at?: string;
         };
@@ -171,6 +174,13 @@ export type Database = {
             columns: ['tenant_id'];
             isOneToOne: false;
             referencedRelation: 'tenants';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'menu_items_recipe_id_fkey';
+            columns: ['recipe_id'];
+            isOneToOne: false;
+            referencedRelation: 'recipes';
             referencedColumns: ['id'];
           },
         ];

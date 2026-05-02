@@ -21,6 +21,7 @@ export interface MenuItem {
   active: boolean;
   createdAt: string;
   updatedAt: string;
+  recipeId?: string | null;
 }
 
 export interface Ingredient {
