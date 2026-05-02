@@ -9,6 +9,7 @@ import type {
   Recipe,
   RecipeComponent,
   RecipeType,
+  RecipeVersion,
   RecipeWithComponents,
 } from '@/lib/types';
 
@@ -243,7 +244,7 @@ type AnySupabase = { from: (table: string) => any };
 export async function getRecipeVersions(
   tenantId: string,
   recipeId: string,
-): Promise<import('@/lib/types').RecipeVersion[]> {
+): Promise<RecipeVersion[]> {
   const supabase = await createServerSupabaseClient();
   const db = supabase as unknown as AnySupabase;
   const { data, error } = await db
