@@ -1,106 +1,105 @@
-# Checklists (Step 2.2)
+## Dashboard KPIs & Alerts (Step 2.3)
 
-Build the Checklists screen with daily completion + template management tabs. The action stub is missing and needs to be created. Three Radix primitives (Accordion, Checkbox, Progress) are not installed and not allowed by the "no new packages" rule, so I'll implement them with native HTML + Tailwind.
+Build a Hebrew RTL dashboard at `/[tenantSlug]/dashboard` showing today's KPIs, active alerts, and (for owner/manager) alert rule management.
 
-## Files
+### 1. Types — append to `src/lib/types/index.ts`
+
+```ts
+export type KPIMetric =
+  | 'prep_completion_rate'
+  | 'checklist_completion_rate'
+  | 'fc_percent'
+  | 'active_recipes';
+export type AlertSeverity = 'info' | 'warning' | 'critical';
+export type AlertOperator = 'lt' | 'gt' | 'lte' | 'gte';
+
+export interface Alert { id; metric; value; threshold; severity; message; acknowledged; firedAt; date }
+export interface KPISnapshot { date; prepCompletionRate; checklistCompletionRate; fcPercent: number|null; activeRecipes; alerts: Alert[] }
+export interface AlertRule { id; metric; threshold; operator; severity; active }
+```
+
+### 2. Server action stubs — `src/lib/actions/dashboard.ts`
+
+`'use server'` module with in-memory store (matching `prep.ts` pattern). Exports:
+
+- `getKPISnapshot(tenantId, date)` — returns seeded snapshot for today (e.g. prep 75%, checklist 92%, fc 32.5%, active 18) and 2 sample alerts (1 critical FC, 1 warning prep). For non-today dates returns zeros / empty alerts.
+- `getAlertRules(tenantId)` — returns 2 seeded rules.
+- `createAlertRule(tenantId, data)` — pushes new rule with generated id, defaults severity to `'warning'`.
+- `acknowledgeAlert(tenantId, alertId, userId)` — flips `acknowledged: true` and returns the alert.
+
+### 3. Page — `src/app/(app)/[tenantSlug]/dashboard/page.tsx`
+
+Server Component mirroring `checklists/page.tsx`:
+
+```tsx
+const { tenantSlug } = await params;
+const tenant = await requireTenant(tenantSlug);
+const ctx = await getAuthContext();
+const role = ctx ? await getUserRole(tenant.id, ctx.userId) : null;
+return <DashboardClient tenantId={tenant.id} tenantSlug={tenantSlug} userRole={role} userId={ctx?.userId ?? null} />;
+```
+
+### 4. `_components/DashboardClient.tsx` (`'use client'`)
+
+State: `date` (default today ISO), `snapshot`, `rules`, `loading`, `error`, `rulesOpen`. Use `useState` + `useTransition`.
+
+On mount and on date change: `Promise.all([getKPISnapshot, getAlertRules])`.
+
+Layout (top to bottom):
+
+1. **PageHeader** `title="לוח בקרה"` with `actions` = date nav (◀ today ▶ buttons + formatted date badge using `Intl.DateTimeFormat('he-IL')`, mirrored chevrons like PrepListClient).
+2. **KPI cards row** — `grid gap-4 grid-cols-2 lg:grid-cols-4`. Inline KPI card component (not reusing `KPICard.tsx` since spec wants color-coded background + custom icon). Each card:
+   - Icon top-end, label, large centered number, color class from helper.
+   - Helpers: `rateColor(n)` → green ≥80, yellow ≥60, red <60. `fcColor(n|null)` → green <30, yellow ≤35, red >35, gray for null.
+   - Skeleton (h-24) while `loading`.
+   - Cards: השלמת הכנות (ChefHat), השלמת צ'קליסטים (CheckSquare), עלות מזון (TrendingUp), מתכונים פעילים (BookOpen, no color coding).
+3. **Alerts panel** — Card with header "התראות פעילות" + count Badge (red if any critical, yellow if only warnings, hidden if 0). Body:
+   - If empty: centered green CheckSquare + "אין התראות פעילות".
+   - Else: list rows sorted critical→warning→info. Each row: severity icon (AlertTriangle red/yellow, Info blue), message, relative time (small helper `relativeTimeHe(iso)` → "לפני X דקות/שעות/ימים"), and `IfRole` owner/manager → "אשר" Button. Acknowledge: optimistic remove from list + call `acknowledgeAlert`; on error toast + restore.
+4. **Manage rules button** (bottom) — `IfRole` owner/manager → Button "ניהול חוקי התראות" opens `AlertRulesSheet`.
+
+Toasts via `sonner` (matching existing pattern in PrepListClient).
+
+### 5. `_components/AlertRulesSheet.tsx` (`'use client'`)
+
+Props: `tenantId`, `open`, `onOpenChange`, `rules`, `onRulesChange(next)`.
+
+`Sheet side="right"` with header "ניהול חוקי התראות". Body:
+
+- **Rules list**: each row shows `METRIC_LABEL[rule.metric]` | `OPERATOR_LABEL[rule.operator] threshold` | severity badge (color-coded) | Trash2 button (local-only delete since no `deleteAlertRule` action exists — filters from prop list and calls `onRulesChange`). Empty state "אין חוקים פעילים".
+- **Inline add form** at bottom (state: metric, operator, threshold, severity):
+  - Selects for metric / operator / severity (Hebrew labels per spec).
+  - Numeric Input for threshold.
+  - "הוסף חוק" Button — validates threshold is a number, calls `createAlertRule`, on success appends to list via `onRulesChange`, resets form. Uses `useTransition` for pending state. Error → toast.
+
+### 6. Sidebar — `src/components/shared/Sidebar.tsx`
+
+Add nav item between "בית" and "Prep List":
+
+```ts
+{ label: 'לוח בקרה', href: '/dashboard', icon: LayoutDashboard, minRole: 'manager' }
+```
+
+(Replace existing "ביצועי פלור" LayoutDashboard import usage — both can share the icon import.)
+
+### File structure
 
 ```
-src/lib/actions/checklists.ts                                     (action stub, 'use server')
-src/lib/types/index.ts                                            (add Checklist types)
-src/app/(app)/[tenantSlug]/checklists/page.tsx                    (server component)
-src/app/(app)/[tenantSlug]/checklists/_components/
-  ChecklistsClient.tsx
-  ChecklistCompletionSheet.tsx
-  ChecklistTemplateDrawer.tsx
-src/components/shared/Sidebar.tsx                                  (point to /checklists)
+src/app/(app)/[tenantSlug]/dashboard/
+  page.tsx
+  _components/
+    DashboardClient.tsx
+    AlertRulesSheet.tsx
+src/lib/actions/dashboard.ts        (new)
+src/lib/types/index.ts              (append KPI/Alert types)
+src/components/shared/Sidebar.tsx   (add nav item)
 ```
 
-Spec routes to `/checklists` (plural) but the existing sidebar + placeholder use `/checklist` (singular). I'll add the new `/checklists` route per spec and update the sidebar link so the nav item works. The legacy `/checklist/page.tsx` placeholder stays untouched.
+### Constraints respected
 
-## 1. Types (append to `src/lib/types/index.ts`)
-
-- `ShiftType = 'morning' | 'afternoon' | 'evening' | 'night'`
-- `ChecklistStatus = 'pending' | 'partial' | 'completed'`
-- `Checklist`, `ChecklistItem`, `ChecklistCompletion`, `ChecklistWithItems` per spec.
-
-## 2. Action stub — `src/lib/actions/checklists.ts`
-
-`'use server'` module with in-memory Map store keyed by tenant. Same pattern as `prep.ts`. Implements all 8 functions; seeds 2–3 sample checklists per tenant on first read. Validation: required fields throw with Hebrew messages. Will be wired to DB later.
-
-## 3. Page — `checklists/page.tsx`
-
-Server Component:
-- `requireTenant`, `getAuthContext`, `getUserRole`
-- Renders `<ChecklistsClient tenantId tenantSlug userRole userId />`
-
-## 4. `ChecklistsClient.tsx`
-
-State: `activeTab` ('daily' | 'templates'), `date`, `shift`, `checklists`, `completions: Record<checklistId, ChecklistCompletion | null>`, `loading`, `error`, sheet/drawer state.
-
-Layout:
-- `<PageHeader title="צ׳קליסטים" />`
-- `<Tabs>` — "מילוי יומי" always; "ניהול תבניות" gated via `IfRole roles={['owner','manager']}`. If chef/staff, render only the daily tab.
-
-### Daily tab
-- Date nav (ChevronRight prev / date display / ChevronLeft next), same pattern as Prep page.
-- Shift filter — secondary `<Tabs>` with 4 shifts (בוקר/צהריים/ערב/לילה).
-- Effect on `[date, shift]`: fetch `getChecklists(tenantId, shift)`, then `Promise.all` of `getChecklistCompletion` per list.
-- Render `<Card>` per checklist:
-  - Icon (`ClipboardList`) + name
-  - Progress text `X/Y` (color: green=all, yellow=partial, gray=none) + status `<Badge>` with same color mapping ("הושלם"/"חלקי"/"ממתין")
-  - "פתח" button → opens `ChecklistCompletionSheet`
-- States: 4 skeleton cards while loading; empty state "אין רשימות למשמרת זו" with `ClipboardList`; error retry.
-
-### Templates tab (owner/manager)
-- Header "+ הוסף רשימה" → opens `ChecklistTemplateDrawer` in create mode.
-- For each checklist, render a custom expandable card (no Radix Accordion — uses local `expanded[id]` state with chevron):
-  - Header row: chevron + name + shift badge + "ערוך" + "מחק" buttons.
-  - Expanded body: items list (each with `GripVertical` icon — visual only, no DnD per "no new packages"; trash icon → `removeChecklistItem`).
-  - Inline "+ הוסף סעיף" — `<Input>` + ✓ button; Enter or click calls `addChecklistItem`.
-- "מחק" → `updateChecklist(..., { active: false })` then drop from list (toast "הרשימה הוסרה").
-- Lazy-load items per checklist: when user expands for the first time, fetch via `getChecklistWithItems` and cache in `itemsById` state.
-
-## 5. `ChecklistCompletionSheet.tsx`
-
-`<Sheet side="right" className="sm:max-w-lg">`. Loads `getChecklistWithItems` + completion on open.
-
-State: `completedItems: Set<string>`, `notes`, `saving`.
-
-Content:
-- Title: checklist name; subtitle: `formatDateHe(date)`.
-- Custom progress bar (div + inner div with width %, semantic colors via `bg-primary`).
-- Item list — native `<input type="checkbox">` styled with Tailwind (`accent-primary h-5 w-5`), label clickable. Checked rows get `bg-green-50` background.
-- `<Textarea>` for notes (max 500).
-- If completion exists, show "עודכן: <timestamp>" muted text.
-
-Status auto-derived: 0=pending, all=completed, else=partial.
-
-Footer:
-- "סגור" outline.
-- "שמור ✓" primary; spinner while saving. Calls `upsertChecklistCompletion(tenantId, checklistId, date, { completedBy: userId, completedItems: [...set], notes, signatureUrl: null })`. On success: toast, propagate updated completion to parent via `onSaved`, close.
-
-## 6. `ChecklistTemplateDrawer.tsx`
-
-`<Sheet side="right">`. Modes: create / edit (driven by `checklist?: Checklist | null` prop).
-
-Fields:
-- שם הרשימה — `<Input maxLength={100}>` (required).
-- משמרת — `<Select>` with 4 Hebrew options (required).
-
-Validation: trim name; if empty → toast "שם הרשימה הוא שדה חובה". If no shift → "יש לבחור משמרת".
-
-Footer: "ביטול" / "שמור" (spinner while saving). Calls `createChecklist` or `updateChecklist`. On success: toast, `onSaved(updated)`, close. Title: "רשימה חדשה" / "עריכת רשימה".
-
-## 7. Sidebar update
-
-Change `'/checklist'` → `'/checklists'` in `NAV_ITEMS` so the nav reaches the new page.
-
-## Constraints honored
-
-- shadcn/ui only — Tabs, Sheet, Badge, Input, Textarea, Select, Skeleton, Button, Card, Label, Tooltip already present.
-- Accordion / Checkbox / Progress: replaced by lightweight Tailwind primitives (no new packages).
-- No fetch/axios — actions imported and called directly.
-- `signatureUrl` always `null` per spec.
-- Toasts via `sonner` (project standard).
-- Status colors via Tailwind classes consistent with prep page (`bg-yellow-100`, `bg-blue-100`, `bg-green-100`, `bg-gray-100`).
-- All UI text Hebrew, `text-right` and RTL-friendly flex.
+- No new packages, no fetch/axios, no real DB queries.
+- shadcn-only primitives: Card, Sheet, Badge, Button, Select, Input, Skeleton.
+- RTL: `flex-row-reverse` where needed; mirrored ChevronLeft/Right; `text-right`.
+- All UI strings Hebrew.
+- Acknowledge + rule mgmt gated via `IfRole` to owner/manager.
+- Optimistic updates for acknowledge + rule create; rollback on error.
