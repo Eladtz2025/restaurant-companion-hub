@@ -574,6 +574,138 @@ export type Database = {
         };
         Relationships: [];
       };
+      alert_rules: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          metric: string;
+          threshold: number;
+          operator: string;
+          severity: string;
+          active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          metric: string;
+          threshold: number;
+          operator: string;
+          severity?: string;
+          active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          metric?: string;
+          threshold?: number;
+          operator?: string;
+          severity?: string;
+          active?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      alerts: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          rule_id: string | null;
+          metric: string;
+          value: number;
+          threshold: number;
+          severity: string;
+          message: string;
+          acknowledged: boolean;
+          acknowledged_by: string | null;
+          acknowledged_at: string | null;
+          fired_at: string;
+          date: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          rule_id?: string | null;
+          metric: string;
+          value: number;
+          threshold: number;
+          severity: string;
+          message: string;
+          acknowledged?: boolean;
+          acknowledged_by?: string | null;
+          acknowledged_at?: string | null;
+          fired_at?: string;
+          date: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          rule_id?: string | null;
+          metric?: string;
+          value?: number;
+          threshold?: number;
+          severity?: string;
+          message?: string;
+          acknowledged?: boolean;
+          acknowledged_by?: string | null;
+          acknowledged_at?: string | null;
+          fired_at?: string;
+          date?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      manager_overrides: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          entity_type: string;
+          entity_id: string;
+          field: string;
+          original_value: unknown;
+          override_value: unknown;
+          reason: string | null;
+          overridden_by: string;
+          reverted: boolean;
+          reverted_by: string | null;
+          reverted_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          entity_type: string;
+          entity_id: string;
+          field: string;
+          original_value: unknown;
+          override_value: unknown;
+          reason?: string | null;
+          overridden_by: string;
+          reverted?: boolean;
+          reverted_by?: string | null;
+          reverted_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          entity_type?: string;
+          entity_id?: string;
+          field?: string;
+          original_value?: unknown;
+          override_value?: unknown;
+          reason?: string | null;
+          overridden_by?: string;
+          reverted?: boolean;
+          reverted_by?: string | null;
+          reverted_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
