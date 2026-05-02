@@ -18,6 +18,7 @@ function rowToMenuItem(row: Record<string, unknown>): MenuItem {
     active: row.active as boolean,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
+    recipeId: (row.recipe_id as string | null) ?? null,
   };
 }
 
@@ -85,6 +86,7 @@ export async function updateMenuItem(
     priceCents: number;
     posExternalId: string | null;
     active: boolean;
+    recipeId: string | null;
   }>,
 ): Promise<MenuItem> {
   const ctx = await getAuthContext();
@@ -99,6 +101,7 @@ export async function updateMenuItem(
     price_cents?: number;
     pos_external_id?: string | null;
     active?: boolean;
+    recipe_id?: string | null;
   } = {};
   if (data.nameHe !== undefined) patch.name_he = data.nameHe;
   if (data.nameEn !== undefined) patch.name_en = data.nameEn;
@@ -106,6 +109,7 @@ export async function updateMenuItem(
   if (data.priceCents !== undefined) patch.price_cents = data.priceCents;
   if (data.posExternalId !== undefined) patch.pos_external_id = data.posExternalId;
   if (data.active !== undefined) patch.active = data.active;
+  if (data.recipeId !== undefined) patch.recipe_id = data.recipeId;
 
   const { data: row, error } = await supabase
     .from('menu_items')
@@ -129,6 +133,14 @@ export async function updateMenuItem(
     });
   }
   return updated;
+}
+
+export async function linkRecipe(
+  tenantId: string,
+  menuItemId: string,
+  recipeId: string | null,
+): Promise<MenuItem> {
+  return updateMenuItem(tenantId, menuItemId, { recipeId });
 }
 
 export async function toggleMenuItemActive(tenantId: string, id: string): Promise<MenuItem> {
@@ -167,28 +179,4 @@ export async function deleteMenuItem(tenantId: string, id: string): Promise<void
       beforeData: { name_he: before.nameHe, price_cents: before.priceCents },
     });
   }
-}
-
-/**
- * Link/unlink a recipe to a menu item — STUB.
- * The `recipe_id` column on `menu_items` and the related logic are owned by
- * the orchestrator phase. Replace this stub with a real implementation.
- */
-export async function linkRecipe(
-  tenantId: string,
-  menuItemId: string,
-  recipeId: string | null,
-): Promise<MenuItem> {
-  const supabase = await createServerSupabaseClient();
-  const { data: row, error } = await supabase
-    .from('menu_items')
-    // Cast: recipe_id column may not yet exist in generated types.
-    .update({ recipe_id: recipeId } as never)
-    .eq('tenant_id', tenantId)
-    .eq('id', menuItemId)
-    .select()
-    .single();
-  if (error) throw new Error(error.message);
-  const item = rowToMenuItem(row);
-  return { ...item, recipeId };
 }

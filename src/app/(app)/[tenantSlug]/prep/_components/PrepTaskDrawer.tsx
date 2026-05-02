@@ -17,25 +17,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import {
-  Sheet,
-  SheetContent,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  createOverride,
-  getOverrides,
-  revertOverride,
-  type ManagerOverride,
-} from '@/lib/actions/overrides';
+import { createOverride, getOverrides, revertOverride } from '@/lib/actions/overrides';
 import { updatePrepTaskStatus } from '@/lib/actions/prep';
 
 import type { Role } from '@/lib/permissions';
-import type { PrepTask, PrepTaskStatus } from '@/lib/types';
+import type { ManagerOverride, PrepTask, PrepTaskStatus } from '@/lib/types';
 
 const STATUS_OPTIONS: Array<{ value: PrepTaskStatus; label: string }> = [
   { value: 'pending', label: 'ממתין' },
@@ -64,14 +53,7 @@ function relativeTimeHe(iso: string): string {
   return `לפני ${days} ימים`;
 }
 
-export function PrepTaskDrawer({
-  tenantId,
-  userRole,
-  task,
-  open,
-  onOpenChange,
-  onSaved,
-}: Props) {
+export function PrepTaskDrawer({ tenantId, userRole, task, open, onOpenChange, onSaved }: Props) {
   const [status, setStatus] = useState<PrepTaskStatus>('pending');
   const [qtyActual, setQtyActual] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
@@ -109,9 +91,7 @@ export function PrepTaskDrawer({
       })
       .catch((err) => {
         if (!cancelled) {
-          toast.error(
-            err instanceof Error ? err.message : 'שגיאה בטעינת היסטוריית עקיפות',
-          );
+          toast.error(err instanceof Error ? err.message : 'שגיאה בטעינת היסטוריית עקיפות');
         }
       })
       .finally(() => {
@@ -183,11 +163,8 @@ export function PrepTaskDrawer({
   async function handleRevert(ov: ManagerOverride) {
     if (!task) return;
     const prevList = overrides;
-    const wasMostRecentActive =
-      overrides.find((o) => !o.reverted)?.id === ov.id;
-    setOverrides((prev) =>
-      prev.map((o) => (o.id === ov.id ? { ...o, reverted: true } : o)),
-    );
+    const wasMostRecentActive = overrides.find((o) => !o.reverted)?.id === ov.id;
+    setOverrides((prev) => prev.map((o) => (o.id === ov.id ? { ...o, reverted: true } : o)));
     try {
       await revertOverride(tenantId, ov.id);
       if (wasMostRecentActive && typeof ov.originalValue === 'number') {
@@ -346,9 +323,7 @@ export function PrepTaskDrawer({
                           {relativeTimeHe(ov.createdAt)}
                         </p>
                         {ov.reason && (
-                          <p className="text-muted-foreground mt-1 text-xs italic">
-                            {ov.reason}
-                          </p>
+                          <p className="text-muted-foreground mt-1 text-xs italic">{ov.reason}</p>
                         )}
                       </div>
                       {!ov.reverted && (

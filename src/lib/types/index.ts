@@ -19,9 +19,9 @@ export interface MenuItem {
   category: string;
   priceCents: number;
   active: boolean;
-  recipeId?: string | null;
   createdAt: string;
   updatedAt: string;
+  recipeId?: string | null;
 }
 
 export interface Ingredient {
@@ -47,23 +47,12 @@ export interface Recipe {
   yieldQty: number;
   yieldUnit: IngredientUnit;
   active: boolean;
-  imageUrl?: string | null;
-  instructionsMd?: string | null;
-  videoUrl?: string | null;
-  currentVersion?: number;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface RecipeVersion {
-  id: string;
-  tenantId: string;
-  recipeId: string;
-  version: number;
-  snapshotData: RecipeWithComponents;
-  changedBy: string | null;
-  changeNote: string | null;
-  createdAt: string;
+  imageUrl?: string | null;
+  currentVersion?: number;
+  instructionsMd?: string | null;
+  videoUrl?: string | null;
 }
 
 export interface RecipeComponent {
@@ -82,13 +71,24 @@ export interface RecipeWithComponents extends Recipe {
   components: RecipeComponent[];
 }
 
+export interface RecipeVersion {
+  id: string;
+  tenantId: string;
+  recipeId: string;
+  version: number;
+  snapshotData: RecipeWithComponents;
+  changedBy: string | null;
+  changeNote: string | null;
+  createdAt: string;
+}
+
 export type PrepTaskStatus = 'pending' | 'in_progress' | 'done' | 'skipped';
 
 export interface PrepTask {
   id: string;
   tenantId: string;
   recipeId: string;
-  prepDate: string;
+  prepDate: string; // ISO date "YYYY-MM-DD"
   qtyRequired: number;
   qtyActual: number | null;
   unit: string;
@@ -135,10 +135,10 @@ export interface ChecklistCompletion {
   id: string;
   tenantId: string;
   checklistId: string;
-  completionDate: string;
+  completionDate: string; // YYYY-MM-DD
   completedBy: string | null;
   signatureUrl: string | null;
-  completedItems: string[];
+  completedItems: string[]; // array of checklist_item IDs
   notes: string | null;
   status: ChecklistStatus;
   createdAt: string;
@@ -149,24 +149,40 @@ export interface ChecklistWithItems extends Checklist {
   items: ChecklistItem[];
 }
 
+export type AlertSeverity = 'info' | 'warning' | 'critical';
+export type AlertOperator = 'lt' | 'gt' | 'lte' | 'gte';
 export type KPIMetric =
   | 'prep_completion_rate'
   | 'checklist_completion_rate'
   | 'fc_percent'
   | 'active_recipes';
-export type AlertSeverity = 'info' | 'warning' | 'critical';
-export type AlertOperator = 'lt' | 'gt' | 'lte' | 'gte';
+
+export interface AlertRule {
+  id: string;
+  tenantId: string;
+  metric: KPIMetric;
+  threshold: number;
+  operator: AlertOperator;
+  severity: AlertSeverity;
+  active: boolean;
+  createdAt: string;
+}
 
 export interface Alert {
   id: string;
+  tenantId: string;
+  ruleId: string | null;
   metric: KPIMetric;
   value: number;
   threshold: number;
   severity: AlertSeverity;
   message: string;
   acknowledged: boolean;
+  acknowledgedBy: string | null;
+  acknowledgedAt: string | null;
   firedAt: string;
   date: string;
+  createdAt: string;
 }
 
 export interface KPISnapshot {
@@ -178,11 +194,18 @@ export interface KPISnapshot {
   alerts: Alert[];
 }
 
-export interface AlertRule {
+export interface ManagerOverride {
   id: string;
-  metric: KPIMetric;
-  threshold: number;
-  operator: AlertOperator;
-  severity: AlertSeverity;
-  active: boolean;
+  tenantId: string;
+  entityType: 'prep_task';
+  entityId: string;
+  field: string;
+  originalValue: unknown;
+  overrideValue: unknown;
+  reason: string | null;
+  overriddenBy: string;
+  reverted: boolean;
+  revertedBy: string | null;
+  revertedAt: string | null;
+  createdAt: string;
 }

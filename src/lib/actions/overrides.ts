@@ -1,95 +1,140 @@
 'use server';
 
-export interface ManagerOverride {
-  id: string;
-  tenantId: string;
-  entityType: 'prep_task';
-  entityId: string;
-  field: string;
-  originalValue: unknown;
-  overrideValue: unknown;
-  reason: string | null;
-  overriddenBy: string;
-  reverted: boolean;
-  revertedBy: string | null;
-  revertedAt: string | null;
-  createdAt: string;
+import { z } from 'zod';
+
+import { createServerSupabaseClient, getAuthContext } from '@/lib/supabase/server';
+
+import type { ManagerOverride } from '@/lib/types';
+
+function rowToOverride(row: Record<string, unknown>): ManagerOverride {
+  return {
+    id: row.id as string,
+    tenantId: row.tenant_id as string,
+    entityType: row.entity_type as 'prep_task',
+    entityId: row.entity_id as string,
+    field: row.field as string,
+    originalValue: row.original_value,
+    overrideValue: row.override_value,
+    reason: (row.reason as string | null) ?? null,
+    overriddenBy: row.overridden_by as string,
+    reverted: row.reverted as boolean,
+    revertedBy: (row.reverted_by as string | null) ?? null,
+    revertedAt: (row.reverted_at as string | null) ?? null,
+    createdAt: row.created_at as string,
+  };
 }
 
-/**
- * STUB. In-memory manager overrides for development. The orchestrator phase
- * replaces this with real DB queries against a `manager_overrides` table.
- */
-
-const store = new Map<string, ManagerOverride[]>();
-
-function ensure(tenantId: string): ManagerOverride[] {
-  if (!store.has(tenantId)) store.set(tenantId, []);
-  return store.get(tenantId)!;
-}
+const CreateOverrideSchema = z.object({
+  entityType: z.literal('prep_task'),
+  entityId: z.string().uuid(),
+  field: z.string().min(1),
+  originalValue: z.unknown(),
+  overrideValue: z.unknown(),
+  reason: z.string().max(500).nullable().optional(),
+});
 
 export async function createOverride(
   tenantId: string,
   data: {
     entityType: 'prep_task';
     entityId: string;
-    field: 'qty_required';
-    originalValue: number;
-    overrideValue: number;
+    field: string;
+    originalValue: unknown;
+    overrideValue: unknown;
     reason?: string | null;
   },
 ): Promise<ManagerOverride> {
-  const list = ensure(tenantId);
-  const ov: ManagerOverride = {
-    id: `ovr_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-    tenantId,
-    entityType: data.entityType,
-    entityId: data.entityId,
-    field: data.field,
-    originalValue: data.originalValue,
-    overrideValue: data.overrideValue,
-    reason: data.reason ?? null,
-    overriddenBy: 'current_user',
-    reverted: false,
-    revertedBy: null,
-    revertedAt: null,
-    createdAt: new Date().toISOString(),
-  };
-  list.unshift(ov);
-  return { ...ov };
+  const ctx = await getAuthContext();
+  if (!ctx) throw new Error('Unauthorized');
+
+  const validated = CreateOverrideSchema.parse(data);
+  const supabase = await createServerSupabaseClient();
+
+  // 1. Record the override
+  const { data: row, error } = await supabase
+    .from('manager_overrides')
+    .insert({
+      tenant_id: tenantId,
+      entity_type: validated.entityType,
+      entity_id: validated.entityId,
+      field: validated.field,
+      original_value: validated.originalValue,
+      override_value: validated.overrideValue,
+      reason: validated.reason ?? null,
+      overridden_by: ctx.userId,
+    })
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+
+  // 2. Apply the override to prep_tasks
+  if (validated.entityType === 'prep_task' && validated.field === 'qty_required') {
+    const { error: updateError } = await supabase
+      .from('prep_tasks')
+      .update({ qty_required: validated.overrideValue as number })
+      .eq('tenant_id', tenantId)
+      .eq('id', validated.entityId);
+    if (updateError) throw new Error(updateError.message);
+  }
+
+  return rowToOverride(row as Record<string, unknown>);
 }
 
 export async function revertOverride(
   tenantId: string,
   overrideId: string,
 ): Promise<ManagerOverride> {
-  const list = ensure(tenantId);
-  const idx = list.findIndex((o) => o.id === overrideId);
-  if (idx === -1) throw new Error('Override not found');
-  const next: ManagerOverride = {
-    ...list[idx]!,
-    reverted: true,
-    revertedBy: 'current_user',
-    revertedAt: new Date().toISOString(),
-  };
-  list[idx] = next;
-  return { ...next };
+  const ctx = await getAuthContext();
+  if (!ctx) throw new Error('Unauthorized');
+
+  const supabase = await createServerSupabaseClient();
+
+  // Fetch the override
+  const { data: existing, error: fetchError } = await supabase
+    .from('manager_overrides')
+    .select('*')
+    .eq('tenant_id', tenantId)
+    .eq('id', overrideId)
+    .single();
+  if (fetchError) throw new Error(fetchError.message);
+
+  const override = rowToOverride(existing as Record<string, unknown>);
+  if (override.reverted) throw new Error('Override already reverted');
+
+  // Restore original value on prep_tasks
+  if (override.entityType === 'prep_task' && override.field === 'qty_required') {
+    const { error: updateError } = await supabase
+      .from('prep_tasks')
+      .update({ qty_required: override.originalValue as number })
+      .eq('tenant_id', tenantId)
+      .eq('id', override.entityId);
+    if (updateError) throw new Error(updateError.message);
+  }
+
+  // Mark as reverted
+  const { data: row, error } = await supabase
+    .from('manager_overrides')
+    .update({ reverted: true, reverted_by: ctx.userId, reverted_at: new Date().toISOString() })
+    .eq('tenant_id', tenantId)
+    .eq('id', overrideId)
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+
+  return rowToOverride(row as Record<string, unknown>);
 }
 
 export async function getOverrides(
   tenantId: string,
-  options?: {
-    entityType?: 'prep_task';
-    entityId?: string;
-    includeReverted?: boolean;
-  },
+  options?: { entityType?: 'prep_task'; entityId?: string; includeReverted?: boolean },
 ): Promise<ManagerOverride[]> {
-  return ensure(tenantId)
-    .filter((o) => {
-      if (options?.entityType && o.entityType !== options.entityType) return false;
-      if (options?.entityId && o.entityId !== options.entityId) return false;
-      if (!options?.includeReverted && o.reverted) return false;
-      return true;
-    })
-    .map((o) => ({ ...o }));
+  const supabase = await createServerSupabaseClient();
+  let q = supabase.from('manager_overrides').select('*').eq('tenant_id', tenantId);
+  if (options?.entityType) q = q.eq('entity_type', options.entityType);
+  if (options?.entityId) q = q.eq('entity_id', options.entityId);
+  if (!options?.includeReverted) q = q.eq('reverted', false);
+  q = q.order('created_at', { ascending: false });
+  const { data, error } = await q;
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => rowToOverride(r as Record<string, unknown>));
 }

@@ -1,15 +1,42 @@
 'use server';
 
+import { z } from 'zod';
+
 import { logAuditEvent } from '@/lib/audit/logger';
 import { createServerSupabaseClient, getAuthContext } from '@/lib/supabase/server';
 
+import type { Json } from '@/lib/supabase/database.types';
 import type {
   IngredientUnit,
   Recipe,
   RecipeComponent,
   RecipeType,
+  RecipeVersion,
   RecipeWithComponents,
 } from '@/lib/types';
+
+const UNIT_VALUES = ['kg', 'g', 'l', 'ml', 'unit', 'pkg'] as const;
+
+const RecipeSchema = z.object({
+  nameHe: z.string().min(1).max(100),
+  nameEn: z.string().max(100).nullable().optional(),
+  type: z.enum(['menu', 'prep']),
+  yieldQty: z.number().positive(),
+  yieldUnit: z.enum(UNIT_VALUES),
+  active: z.boolean().optional(),
+});
+
+const RecipeComponentSchema = z
+  .object({
+    ingredientId: z.string().uuid().nullable().optional(),
+    subRecipeId: z.string().uuid().nullable().optional(),
+    qty: z.number().positive(),
+    unit: z.enum(UNIT_VALUES),
+    sortOrder: z.number().int().optional(),
+  })
+  .refine((d) => !!(d.ingredientId ?? d.subRecipeId), {
+    message: 'Must have either ingredientId or subRecipeId',
+  });
 
 function rowToRecipe(row: Record<string, unknown>): Recipe {
   return {
@@ -23,6 +50,23 @@ function rowToRecipe(row: Record<string, unknown>): Recipe {
     active: row.active as boolean,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
+    imageUrl: (row.image_url as string | null) ?? null,
+    currentVersion: (row.current_version as number) ?? 1,
+    instructionsMd: (row.instructions_md as string | null) ?? null,
+    videoUrl: (row.video_url as string | null) ?? null,
+  };
+}
+
+function rowToRecipeVersion(row: Record<string, unknown>): RecipeVersion {
+  return {
+    id: row.id as string,
+    tenantId: row.tenant_id as string,
+    recipeId: row.recipe_id as string,
+    version: row.version as number,
+    snapshotData: row.snapshot_data as RecipeWithComponents,
+    changedBy: (row.changed_by as string | null) ?? null,
+    changeNote: (row.change_note as string | null) ?? null,
+    createdAt: row.created_at as string,
   };
 }
 
@@ -83,17 +127,25 @@ export async function createRecipe(
     active?: boolean;
   },
 ): Promise<Recipe> {
+  const validated = RecipeSchema.parse({
+    nameHe: data.nameHe,
+    nameEn: data.nameEn,
+    type: data.type,
+    yieldQty: data.yieldQty ?? 1,
+    yieldUnit: data.yieldUnit ?? 'unit',
+    active: data.active,
+  });
   const supabase = await createServerSupabaseClient();
   const { data: row, error } = await supabase
     .from('recipes')
     .insert({
       tenant_id: tenantId,
-      name_he: data.nameHe,
-      name_en: data.nameEn ?? null,
-      type: data.type,
-      yield_qty: data.yieldQty ?? 1,
-      yield_unit: data.yieldUnit ?? 'unit',
-      active: data.active ?? true,
+      name_he: validated.nameHe,
+      name_en: validated.nameEn ?? null,
+      type: validated.type,
+      yield_qty: validated.yieldQty,
+      yield_unit: validated.yieldUnit,
+      active: validated.active ?? true,
     })
     .select()
     .single();
@@ -111,9 +163,9 @@ export async function updateRecipe(
     yieldQty: number;
     yieldUnit: IngredientUnit;
     active: boolean;
-    imageUrl: string | null;
     instructionsMd: string | null;
     videoUrl: string | null;
+    imageUrl: string | null;
   }>,
 ): Promise<Recipe> {
   const supabase = await createServerSupabaseClient();
@@ -124,9 +176,9 @@ export async function updateRecipe(
     yield_qty?: number;
     yield_unit?: string;
     active?: boolean;
-    image_url?: string | null;
     instructions_md?: string | null;
     video_url?: string | null;
+    image_url?: string | null;
   } = {};
   if (data.nameHe !== undefined) patch.name_he = data.nameHe;
   if (data.nameEn !== undefined) patch.name_en = data.nameEn;
@@ -134,14 +186,13 @@ export async function updateRecipe(
   if (data.yieldQty !== undefined) patch.yield_qty = data.yieldQty;
   if (data.yieldUnit !== undefined) patch.yield_unit = data.yieldUnit;
   if (data.active !== undefined) patch.active = data.active;
-  if (data.imageUrl !== undefined) patch.image_url = data.imageUrl;
   if (data.instructionsMd !== undefined) patch.instructions_md = data.instructionsMd;
   if (data.videoUrl !== undefined) patch.video_url = data.videoUrl;
+  if (data.imageUrl !== undefined) patch.image_url = data.imageUrl;
 
   const { data: row, error } = await supabase
     .from('recipes')
-    // Cast: image_url / instructions_md / video_url columns may not yet exist in generated types.
-    .update(patch as never)
+    .update(patch)
     .eq('tenant_id', tenantId)
     .eq('id', id)
     .select()
@@ -161,17 +212,24 @@ export async function addComponent(
     sortOrder?: number;
   },
 ): Promise<RecipeComponent> {
+  const validated = RecipeComponentSchema.parse(component);
+
+  if (validated.subRecipeId) {
+    const hasCycle = await detectCycle(tenantId, recipeId, validated.subRecipeId);
+    if (hasCycle) throw new Error('לא ניתן להוסיף — יוצר לולאה במתכון');
+  }
+
   const supabase = await createServerSupabaseClient();
   const { data: row, error } = await supabase
     .from('recipe_components')
     .insert({
       tenant_id: tenantId,
       recipe_id: recipeId,
-      ingredient_id: component.ingredientId ?? null,
-      sub_recipe_id: component.subRecipeId ?? null,
-      qty: component.qty,
-      unit: component.unit,
-      sort_order: component.sortOrder ?? 0,
+      ingredient_id: validated.ingredientId ?? null,
+      sub_recipe_id: validated.subRecipeId ?? null,
+      qty: validated.qty,
+      unit: validated.unit,
+      sort_order: validated.sortOrder ?? 0,
     })
     .select()
     .single();
@@ -234,6 +292,126 @@ export async function deleteRecipe(tenantId: string, id: string): Promise<void> 
   }
 }
 
+export async function saveRecipeVersion(
+  tenantId: string,
+  recipeId: string,
+  changeNote?: string,
+): Promise<RecipeVersion> {
+  const supabase = await createServerSupabaseClient();
+
+  // 1. Fetch full recipe with components
+  const full = await getRecipeWithComponents(tenantId, recipeId);
+  if (!full) throw new Error('Recipe not found');
+
+  // 2. Get current version number
+  const currentVersion = full.currentVersion ?? 1;
+
+  // 3. Insert into recipe_versions
+  const { data: versionRow, error: insertError } = await supabase
+    .from('recipe_versions')
+    .insert({
+      tenant_id: tenantId,
+      recipe_id: recipeId,
+      version: currentVersion,
+      snapshot_data: full as unknown as Json,
+      change_note: changeNote ?? null,
+    })
+    .select()
+    .single();
+  if (insertError) throw new Error(insertError.message);
+
+  // 4. Increment current_version on recipes
+  const { error: updateError } = await supabase
+    .from('recipes')
+    .update({ current_version: currentVersion + 1 })
+    .eq('tenant_id', tenantId)
+    .eq('id', recipeId);
+  if (updateError) throw new Error(updateError.message);
+
+  return rowToRecipeVersion(versionRow as Record<string, unknown>);
+}
+
+export async function getRecipeVersions(
+  tenantId: string,
+  recipeId: string,
+): Promise<RecipeVersion[]> {
+  const supabase = await createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from('recipe_versions')
+    .select('*')
+    .eq('recipe_id', recipeId)
+    .eq('tenant_id', tenantId)
+    .order('version', { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => rowToRecipeVersion(row as Record<string, unknown>));
+}
+
+export async function restoreRecipeVersion(
+  tenantId: string,
+  recipeId: string,
+  version: number,
+): Promise<RecipeWithComponents> {
+  const supabase = await createServerSupabaseClient();
+
+  // 1. Fetch the version row
+  const { data: versionRow, error: fetchError } = await supabase
+    .from('recipe_versions')
+    .select('*')
+    .eq('recipe_id', recipeId)
+    .eq('tenant_id', tenantId)
+    .eq('version', version)
+    .single();
+  if (fetchError) throw new Error(fetchError.message);
+
+  const snapshot = (versionRow as Record<string, unknown>).snapshot_data as RecipeWithComponents;
+
+  // 2. Delete all current recipe_components for this recipe
+  const { error: deleteError } = await supabase
+    .from('recipe_components')
+    .delete()
+    .eq('tenant_id', tenantId)
+    .eq('recipe_id', recipeId);
+  if (deleteError) throw new Error(deleteError.message);
+
+  // 3. Re-insert components from snapshot
+  if (snapshot.components.length > 0) {
+    const componentRows = snapshot.components.map((c) => ({
+      tenant_id: tenantId,
+      recipe_id: recipeId,
+      ingredient_id: c.ingredientId ?? null,
+      sub_recipe_id: c.subRecipeId ?? null,
+      qty: c.qty,
+      unit: c.unit,
+      sort_order: c.sortOrder,
+    }));
+    const { error: insertComponentsError } = await supabase
+      .from('recipe_components')
+      .insert(componentRows);
+    if (insertComponentsError) throw new Error(insertComponentsError.message);
+  }
+
+  // 4. Restore recipe fields from snapshot
+  const { error: restoreError } = await supabase
+    .from('recipes')
+    .update({
+      name_he: snapshot.nameHe,
+      yield_qty: snapshot.yieldQty,
+      yield_unit: snapshot.yieldUnit,
+      instructions_md: snapshot.instructionsMd ?? null,
+    })
+    .eq('tenant_id', tenantId)
+    .eq('id', recipeId);
+  if (restoreError) throw new Error(restoreError.message);
+
+  // 5. Create a new version snapshot of the restored state
+  await saveRecipeVersion(tenantId, recipeId, `Restored from version ${version}`);
+
+  // 6. Return the restored recipe with components
+  const restored = await getRecipeWithComponents(tenantId, recipeId);
+  if (!restored) throw new Error('Failed to fetch restored recipe');
+  return restored;
+}
+
 export async function detectCycle(
   tenantId: string,
   recipeId: string,
@@ -262,34 +440,4 @@ export async function detectCycle(
     }
   }
   return false;
-}
-
-/**
- * Version history actions — STUBS.
- * Backend wiring (recipe_versions table, RLS, snapshot logic) is owned by
- * the orchestrator phase. Replace these stubs with real implementations.
- */
-export async function getRecipeVersions(
-  _tenantId: string,
-  _recipeId: string,
-): Promise<import('@/lib/types').RecipeVersion[]> {
-  return [];
-}
-
-export async function saveRecipeVersion(
-  _tenantId: string,
-  _recipeId: string,
-  _changeNote?: string,
-): Promise<import('@/lib/types').RecipeVersion | null> {
-  return null;
-}
-
-export async function restoreRecipeVersion(
-  tenantId: string,
-  recipeId: string,
-  _version: number,
-): Promise<RecipeWithComponents> {
-  const current = await getRecipeWithComponents(tenantId, recipeId);
-  if (!current) throw new Error('Recipe not found');
-  throw new Error('שחזור גרסאות עדיין לא ממומש');
 }

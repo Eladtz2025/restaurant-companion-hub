@@ -15,13 +15,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import { getFCReport, type FCReport, type MenuItemFCRow } from '@/lib/actions/fc-report';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { getFCReport } from '@/lib/actions/fc-report';
+
+import type { FCReport, MenuItemFCRow } from '@/lib/food-cost/report';
 
 const CATEGORY_LABEL: Record<string, string> = {
   appetizer: 'מנה ראשונה',
@@ -63,13 +60,7 @@ function fcBadge(row: MenuItemFCRow) {
   return <Badge className={cls}>{pct.toFixed(1)}%</Badge>;
 }
 
-export function FCReportTable({
-  tenantId,
-  report,
-  error,
-  onReportChange,
-  onErrorChange,
-}: Props) {
+export function FCReportTable({ tenantId, report, error, onReportChange, onErrorChange }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>('fcPercent');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [refreshing, setRefreshing] = useState(false);
@@ -123,11 +114,7 @@ export function FCReportTable({
       >
         {label}
         {active &&
-          (sortDir === 'asc' ? (
-            <ArrowUp className="h-3 w-3" />
-          ) : (
-            <ArrowDown className="h-3 w-3" />
-          ))}
+          (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
       </button>
     );
   }

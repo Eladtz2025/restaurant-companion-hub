@@ -1,30 +1,26 @@
 'use server';
 
-/**
- * Recipe image storage helpers.
- *
- * NOTE: This is a stub. Backend wiring (Supabase Storage bucket + policies)
- * is owned by the orchestrator phase. These functions throw at runtime until
- * the bucket is provisioned and the implementation is filled in.
- */
-
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 const BUCKET = 'recipe-images';
+const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 export async function uploadRecipeImage(
   tenantId: string,
   recipeId: string,
   file: File,
 ): Promise<string> {
-  const supabase = await createServerSupabaseClient();
-  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  if (file.size > MAX_SIZE_BYTES) throw new Error('קובץ גדול מדי — מקסימום 5MB');
+  if (!ALLOWED_TYPES.includes(file.type)) throw new Error('סוג קובץ לא נתמך — JPG, PNG, WebP בלבד');
+
+  const ext = file.type.split('/')[1] ?? 'jpg';
   const path = `${tenantId}/${recipeId}/${Date.now()}.${ext}`;
 
+  const supabase = await createServerSupabaseClient();
   const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
-    cacheControl: '3600',
-    upsert: false,
     contentType: file.type,
+    upsert: true,
   });
   if (error) throw new Error(error.message);
 
@@ -32,19 +28,13 @@ export async function uploadRecipeImage(
   return data.publicUrl;
 }
 
-export async function deleteRecipeImage(
-  tenantId: string,
-  recipeId: string,
-): Promise<void> {
+export async function deleteRecipeImage(tenantId: string, recipeId: string): Promise<void> {
   const supabase = await createServerSupabaseClient();
-  const prefix = `${tenantId}/${recipeId}`;
-  const { data: list, error: listErr } = await supabase.storage
-    .from(BUCKET)
-    .list(prefix);
-  if (listErr) throw new Error(listErr.message);
-  if (!list || list.length === 0) return;
+  const { data: files } = await supabase.storage.from(BUCKET).list(`${tenantId}/${recipeId}`);
 
-  const paths = list.map((f) => `${prefix}/${f.name}`);
+  if (!files || files.length === 0) return;
+
+  const paths = files.map((f) => `${tenantId}/${recipeId}/${f.name}`);
   const { error } = await supabase.storage.from(BUCKET).remove(paths);
   if (error) throw new Error(error.message);
 }

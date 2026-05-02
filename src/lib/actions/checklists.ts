@@ -1,5 +1,9 @@
 'use server';
 
+import { z } from 'zod';
+
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+
 import type {
   Checklist,
   ChecklistCompletion,
@@ -9,145 +13,116 @@ import type {
   ShiftType,
 } from '@/lib/types';
 
-/**
- * STUB. In-memory checklists store. Orchestrator phase replaces with DB.
- */
+const ShiftEnum = z.enum(['morning', 'afternoon', 'evening', 'night']);
+const StatusEnum = z.enum(['pending', 'partial', 'completed']);
 
-const checklistsByTenant = new Map<string, Checklist[]>();
-const itemsByChecklist = new Map<string, ChecklistItem[]>();
-const completionsByKey = new Map<string, ChecklistCompletion>();
+void StatusEnum;
 
-let counter = 1000;
-function newId(prefix: string) {
-  counter += 1;
-  return `${prefix}_${counter}`;
-}
+const ChecklistSchema = z.object({
+  name: z.string().min(1).max(100),
+  shift: ShiftEnum,
+  active: z.boolean().optional(),
+});
 
-function nowISO() {
-  return new Date().toISOString();
-}
+const ChecklistItemSchema = z.object({
+  text: z.string().min(1).max(200),
+  sortOrder: z.number().int().optional(),
+});
 
-function completionKey(tenantId: string, checklistId: string, date: string) {
-  return `${tenantId}:${checklistId}:${date}`;
-}
-
-function deriveStatus(total: number, completed: number): ChecklistStatus {
-  if (total === 0 || completed === 0) return completed > 0 ? 'partial' : 'pending';
-  if (completed >= total) return 'completed';
-  return 'partial';
-}
-
-function ensureSeed(tenantId: string) {
-  if (checklistsByTenant.has(tenantId)) return;
-  const created = nowISO();
-  const lists: Checklist[] = [
-    {
-      id: newId('chk'),
-      tenantId,
-      name: 'ציוד בוקר',
-      shift: 'morning',
-      active: true,
-      createdAt: created,
-      updatedAt: created,
-    },
-    {
-      id: newId('chk'),
-      tenantId,
-      name: 'בטיחות',
-      shift: 'morning',
-      active: true,
-      createdAt: created,
-      updatedAt: created,
-    },
-    {
-      id: newId('chk'),
-      tenantId,
-      name: 'סגירת ערב',
-      shift: 'evening',
-      active: true,
-      createdAt: created,
-      updatedAt: created,
-    },
-  ];
-  checklistsByTenant.set(tenantId, lists);
-
-  const seedItems: Record<string, string[]> = {
-    'ציוד בוקר': [
-      'לבדוק ציוד קירור',
-      'לנקות משטחי עבודה',
-      'לאמת מלאי שמן',
-      'לבדוק טמפרטורת תנור',
-    ],
-    'בטיחות': [
-      'לבדוק מטפי כיבוי',
-      'לוודא ערכת עזרה ראשונה',
-      'לבדוק יציאות חירום',
-    ],
-    'סגירת ערב': [
-      'לכבות ציוד',
-      'לנקות מטבח',
-      'לסגור מקררים',
-      'לרוקן פחים',
-      'לנעול דלתות',
-    ],
+function rowToChecklist(row: Record<string, unknown>): Checklist {
+  return {
+    id: row.id as string,
+    tenantId: row.tenant_id as string,
+    name: row.name as string,
+    shift: row.shift as ShiftType,
+    active: row.active as boolean,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
   };
-
-  for (const list of lists) {
-    const texts = seedItems[list.name] ?? [];
-    const items: ChecklistItem[] = texts.map((text, idx) => ({
-      id: newId('item'),
-      tenantId,
-      checklistId: list.id,
-      text,
-      sortOrder: idx,
-      createdAt: created,
-    }));
-    itemsByChecklist.set(list.id, items);
-  }
 }
 
-export async function getChecklists(
-  tenantId: string,
-  shift?: ShiftType,
-): Promise<Checklist[]> {
-  ensureSeed(tenantId);
-  const lists = (checklistsByTenant.get(tenantId) ?? []).filter((c) => c.active);
-  return (shift ? lists.filter((c) => c.shift === shift) : lists).map((c) => ({ ...c }));
+function rowToItem(row: Record<string, unknown>): ChecklistItem {
+  return {
+    id: row.id as string,
+    tenantId: row.tenant_id as string,
+    checklistId: row.checklist_id as string,
+    text: row.text as string,
+    sortOrder: row.sort_order as number,
+    createdAt: row.created_at as string,
+  };
+}
+
+function rowToCompletion(row: Record<string, unknown>): ChecklistCompletion {
+  return {
+    id: row.id as string,
+    tenantId: row.tenant_id as string,
+    checklistId: row.checklist_id as string,
+    completionDate: row.completion_date as string,
+    completedBy: (row.completed_by as string | null) ?? null,
+    signatureUrl: (row.signature_url as string | null) ?? null,
+    completedItems: (row.completed_items as string[]) ?? [],
+    notes: (row.notes as string | null) ?? null,
+    status: row.status as ChecklistStatus,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
+export async function getChecklists(tenantId: string, shift?: ShiftType): Promise<Checklist[]> {
+  const supabase = await createServerSupabaseClient();
+  let q = supabase
+    .from('checklists')
+    .select('*')
+    .eq('tenant_id', tenantId)
+    .eq('active', true)
+    .order('name');
+  if (shift) q = q.eq('shift', shift);
+  const { data, error } = await q;
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(rowToChecklist);
 }
 
 export async function getChecklistWithItems(
   tenantId: string,
   id: string,
 ): Promise<ChecklistWithItems | null> {
-  ensureSeed(tenantId);
-  const list = (checklistsByTenant.get(tenantId) ?? []).find((c) => c.id === id);
-  if (!list) return null;
-  const items = (itemsByChecklist.get(id) ?? []).slice().sort((a, b) => a.sortOrder - b.sortOrder);
-  return { ...list, items: items.map((i) => ({ ...i })) };
+  const supabase = await createServerSupabaseClient();
+  const [checklistRes, itemsRes] = await Promise.all([
+    supabase.from('checklists').select('*').eq('tenant_id', tenantId).eq('id', id).single(),
+    supabase
+      .from('checklist_items')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .eq('checklist_id', id)
+      .order('sort_order'),
+  ]);
+  if (checklistRes.error?.code === 'PGRST116') return null;
+  if (checklistRes.error) throw new Error(checklistRes.error.message);
+  if (itemsRes.error) throw new Error(itemsRes.error.message);
+  return {
+    ...rowToChecklist(checklistRes.data as Record<string, unknown>),
+    items: (itemsRes.data ?? []).map(rowToItem),
+  };
 }
 
 export async function createChecklist(
   tenantId: string,
   data: { name: string; shift: ShiftType; active?: boolean },
 ): Promise<Checklist> {
-  if (!data.name?.trim()) throw new Error('שם הרשימה הוא שדה חובה');
-  if (!data.shift) throw new Error('יש לבחור משמרת');
-  ensureSeed(tenantId);
-  const created = nowISO();
-  const list: Checklist = {
-    id: newId('chk'),
-    tenantId,
-    name: data.name.trim(),
-    shift: data.shift,
-    active: data.active ?? true,
-    createdAt: created,
-    updatedAt: created,
-  };
-  const arr = checklistsByTenant.get(tenantId) ?? [];
-  arr.push(list);
-  checklistsByTenant.set(tenantId, arr);
-  itemsByChecklist.set(list.id, []);
-  return { ...list };
+  const validated = ChecklistSchema.parse(data);
+  const supabase = await createServerSupabaseClient();
+  const { data: row, error } = await supabase
+    .from('checklists')
+    .insert({
+      tenant_id: tenantId,
+      name: validated.name,
+      shift: validated.shift,
+      active: validated.active ?? true,
+    })
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return rowToChecklist(row as Record<string, unknown>);
 }
 
 export async function updateChecklist(
@@ -155,20 +130,20 @@ export async function updateChecklist(
   id: string,
   data: Partial<{ name: string; shift: ShiftType; active: boolean }>,
 ): Promise<Checklist> {
-  ensureSeed(tenantId);
-  const arr = checklistsByTenant.get(tenantId) ?? [];
-  const idx = arr.findIndex((c) => c.id === id);
-  if (idx === -1) throw new Error('הרשימה לא נמצאה');
-  const prev = arr[idx]!;
-  const next: Checklist = {
-    ...prev,
-    name: data.name !== undefined ? data.name.trim() : prev.name,
-    shift: data.shift ?? prev.shift,
-    active: data.active ?? prev.active,
-    updatedAt: nowISO(),
-  };
-  arr[idx] = next;
-  return { ...next };
+  const supabase = await createServerSupabaseClient();
+  const patch: { name?: string; shift?: string; active?: boolean } = {};
+  if (data.name !== undefined) patch.name = data.name;
+  if (data.shift !== undefined) patch.shift = data.shift;
+  if (data.active !== undefined) patch.active = data.active;
+  const { data: row, error } = await supabase
+    .from('checklists')
+    .update(patch)
+    .eq('tenant_id', tenantId)
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return rowToChecklist(row as Record<string, unknown>);
 }
 
 export async function addChecklistItem(
@@ -176,34 +151,30 @@ export async function addChecklistItem(
   checklistId: string,
   item: { text: string; sortOrder?: number },
 ): Promise<ChecklistItem> {
-  if (!item.text?.trim()) throw new Error('יש להזין טקסט');
-  ensureSeed(tenantId);
-  const items = itemsByChecklist.get(checklistId) ?? [];
-  const created: ChecklistItem = {
-    id: newId('item'),
-    tenantId,
-    checklistId,
-    text: item.text.trim(),
-    sortOrder: item.sortOrder ?? items.length,
-    createdAt: nowISO(),
-  };
-  items.push(created);
-  itemsByChecklist.set(checklistId, items);
-  return { ...created };
+  const validated = ChecklistItemSchema.parse(item);
+  const supabase = await createServerSupabaseClient();
+  const { data: row, error } = await supabase
+    .from('checklist_items')
+    .insert({
+      tenant_id: tenantId,
+      checklist_id: checklistId,
+      text: validated.text,
+      sort_order: validated.sortOrder ?? 0,
+    })
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return rowToItem(row as Record<string, unknown>);
 }
 
-export async function removeChecklistItem(
-  tenantId: string,
-  itemId: string,
-): Promise<void> {
-  for (const [cid, items] of itemsByChecklist.entries()) {
-    const idx = items.findIndex((i) => i.id === itemId && i.tenantId === tenantId);
-    if (idx !== -1) {
-      items.splice(idx, 1);
-      itemsByChecklist.set(cid, items);
-      return;
-    }
-  }
+export async function removeChecklistItem(tenantId: string, itemId: string): Promise<void> {
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase
+    .from('checklist_items')
+    .delete()
+    .eq('tenant_id', tenantId)
+    .eq('id', itemId);
+  if (error) throw new Error(error.message);
 }
 
 export async function getChecklistCompletion(
@@ -211,8 +182,17 @@ export async function getChecklistCompletion(
   checklistId: string,
   date: string,
 ): Promise<ChecklistCompletion | null> {
-  const c = completionsByKey.get(completionKey(tenantId, checklistId, date));
-  return c ? { ...c, completedItems: [...c.completedItems] } : null;
+  const supabase = await createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from('checklist_completions')
+    .select('*')
+    .eq('tenant_id', tenantId)
+    .eq('checklist_id', checklistId)
+    .eq('completion_date', date)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  return rowToCompletion(data as Record<string, unknown>);
 }
 
 export async function upsertChecklistCompletion(
@@ -226,25 +206,33 @@ export async function upsertChecklistCompletion(
     signatureUrl?: string | null;
   },
 ): Promise<ChecklistCompletion> {
-  ensureSeed(tenantId);
-  const items = itemsByChecklist.get(checklistId) ?? [];
-  const status = deriveStatus(items.length, update.completedItems.length);
-  const key = completionKey(tenantId, checklistId, date);
-  const existing = completionsByKey.get(key);
-  const now = nowISO();
-  const next: ChecklistCompletion = {
-    id: existing?.id ?? newId('comp'),
-    tenantId,
-    checklistId,
-    completionDate: date,
-    completedBy: update.completedBy ?? existing?.completedBy ?? null,
-    signatureUrl: update.signatureUrl ?? existing?.signatureUrl ?? null,
-    completedItems: [...update.completedItems],
-    notes: update.notes ?? existing?.notes ?? null,
+  const supabase = await createServerSupabaseClient();
+  const itemsRes = await supabase
+    .from('checklist_items')
+    .select('id')
+    .eq('tenant_id', tenantId)
+    .eq('checklist_id', checklistId);
+  const totalItems = (itemsRes.data ?? []).length;
+  const completedCount = update.completedItems.length;
+  const status: ChecklistStatus =
+    completedCount === 0 ? 'pending' : completedCount >= totalItems ? 'completed' : 'partial';
+
+  const payload = {
+    tenant_id: tenantId,
+    checklist_id: checklistId,
+    completion_date: date,
+    completed_by: update.completedBy ?? null,
+    completed_items: update.completedItems,
+    notes: update.notes ?? null,
+    signature_url: update.signatureUrl ?? null,
     status,
-    createdAt: existing?.createdAt ?? now,
-    updatedAt: now,
   };
-  completionsByKey.set(key, next);
-  return { ...next, completedItems: [...next.completedItems] };
+
+  const { data: row, error } = await supabase
+    .from('checklist_completions')
+    .upsert(payload, { onConflict: 'tenant_id,checklist_id,completion_date' })
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return rowToCompletion(row as Record<string, unknown>);
 }
