@@ -140,7 +140,8 @@ export async function updateRecipe(
 
   const { data: row, error } = await supabase
     .from('recipes')
-    .update(patch)
+    // Cast: image_url / instructions_md / video_url columns may not yet exist in generated types.
+    .update(patch as never)
     .eq('tenant_id', tenantId)
     .eq('id', id)
     .select()
