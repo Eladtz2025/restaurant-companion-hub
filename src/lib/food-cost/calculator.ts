@@ -2,9 +2,7 @@ import { canConvert, convert } from '@/lib/units/conversions';
 
 import type { IngredientUnit, MenuItem, RecipeComponent, RecipeWithComponents } from '@/lib/types';
 
-// ingredientUnits maps ingredient id → its storage unit (the unit cost_per_unit_cents is priced in).
-// ingredientCosts maps ingredient id → cost_per_unit_cents (cost per one of that storage unit).
-// If ingredient unit and component unit are compatible, we convert before multiplying.
+const MAX_DEPTH = 5;
 
 export function computeComponentCost(
   component: RecipeComponent,
@@ -19,12 +17,49 @@ export function computeComponentCost(
       if (canConvert(component.unit, ingredientUnit)) {
         qty = convert(component.qty, component.unit, ingredientUnit);
       }
-      // If units are incompatible (e.g. g vs ml), use raw qty — caller's responsibility.
     }
     return costPerUnit * qty;
   }
-  // Sub-recipe cost is looked up separately by the caller via subRecipeCosts.
   return 0;
+}
+
+export interface RecipeCostResult {
+  totalCents: number;
+  warnings: string[];
+}
+
+export function computeRecipeCostWithWarnings(
+  recipe: RecipeWithComponents,
+  ingredientCosts: Map<string, number>,
+  subRecipeCosts: Map<string, number>,
+  ingredientUnits?: Map<string, IngredientUnit>,
+  depth = 0,
+): RecipeCostResult {
+  if (depth > MAX_DEPTH) {
+    throw new Error(
+      `Max sub-recipe depth (${MAX_DEPTH}) exceeded — possible cycle in recipe "${recipe.nameHe}"`,
+    );
+  }
+
+  const warnings: string[] = [];
+  let total = 0;
+
+  for (const component of recipe.components) {
+    if (component.ingredientId) {
+      if (!ingredientCosts.has(component.ingredientId)) {
+        warnings.push(`מרכיב ${component.ingredientId} חסר מחיר`);
+      }
+      total += computeComponentCost(component, ingredientCosts, ingredientUnits);
+    } else if (component.subRecipeId) {
+      if (!subRecipeCosts.has(component.subRecipeId)) {
+        warnings.push(`תת-מתכון ${component.subRecipeId} חסר עלות`);
+      }
+      const subCost = subRecipeCosts.get(component.subRecipeId) ?? 0;
+      total += subCost * component.qty;
+    }
+  }
+
+  return { totalCents: total, warnings };
 }
 
 export function computeRecipeCost(
@@ -33,16 +68,8 @@ export function computeRecipeCost(
   subRecipeCosts: Map<string, number>,
   ingredientUnits?: Map<string, IngredientUnit>,
 ): number {
-  return recipe.components.reduce((sum, component) => {
-    if (component.ingredientId) {
-      return sum + computeComponentCost(component, ingredientCosts, ingredientUnits);
-    }
-    if (component.subRecipeId) {
-      const subCost = subRecipeCosts.get(component.subRecipeId) ?? 0;
-      return sum + subCost * component.qty;
-    }
-    return sum;
-  }, 0);
+  return computeRecipeCostWithWarnings(recipe, ingredientCosts, subRecipeCosts, ingredientUnits)
+    .totalCents;
 }
 
 export function computeMenuItemFC(
