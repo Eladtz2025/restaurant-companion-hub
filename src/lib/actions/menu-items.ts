@@ -16,6 +16,7 @@ function rowToMenuItem(row: Record<string, unknown>): MenuItem {
     category: row.category as string,
     priceCents: row.price_cents as number,
     active: row.active as boolean,
+    recipeId: (row.recipe_id as string | null) ?? null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -167,4 +168,30 @@ export async function deleteMenuItem(tenantId: string, id: string): Promise<void
       beforeData: { name_he: before.nameHe, price_cents: before.priceCents },
     });
   }
+}
+
+export async function linkRecipe(
+  tenantId: string,
+  menuItemId: string,
+  recipeId: string | null,
+): Promise<MenuItem> {
+  const ctx = await getAuthContext();
+  if (!ctx) throw new Error('Unauthenticated');
+  const supabase = await createServerSupabaseClient();
+  const { data: membership } = await supabase
+    .from('memberships')
+    .select('role')
+    .eq('tenant_id', tenantId)
+    .eq('user_id', ctx.userId)
+    .single();
+  assertRole(membership?.role as Parameters<typeof assertRole>[0], 'owner', 'manager', 'chef');
+  const { data, error } = await supabase
+    .from('menu_items')
+    .update({ recipe_id: recipeId, updated_at: new Date().toISOString() })
+    .eq('tenant_id', tenantId)
+    .eq('id', menuItemId)
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return rowToMenuItem(data as Record<string, unknown>);
 }

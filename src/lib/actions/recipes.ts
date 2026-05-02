@@ -2,6 +2,7 @@
 
 import { logAuditEvent } from '@/lib/audit/logger';
 import { createServerSupabaseClient, getAuthContext } from '@/lib/supabase/server';
+import { assertRole } from '@/lib/tenant';
 
 import type {
   IngredientUnit,
@@ -20,6 +21,9 @@ function rowToRecipe(row: Record<string, unknown>): Recipe {
     type: row.type as RecipeType,
     yieldQty: Number(row.yield_qty),
     yieldUnit: row.yield_unit as IngredientUnit,
+    imageUrl: (row.image_url as string | null) ?? null,
+    instructionsMd: (row.instructions_md as string | null) ?? null,
+    videoUrl: (row.video_url as string | null) ?? null,
     active: row.active as boolean,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
@@ -110,6 +114,9 @@ export async function updateRecipe(
     type: RecipeType;
     yieldQty: number;
     yieldUnit: IngredientUnit;
+    imageUrl: string | null;
+    instructionsMd: string | null;
+    videoUrl: string | null;
     active: boolean;
   }>,
 ): Promise<Recipe> {
@@ -120,6 +127,9 @@ export async function updateRecipe(
     type?: string;
     yield_qty?: number;
     yield_unit?: string;
+    image_url?: string | null;
+    instructions_md?: string | null;
+    video_url?: string | null;
     active?: boolean;
   } = {};
   if (data.nameHe !== undefined) patch.name_he = data.nameHe;
@@ -127,6 +137,9 @@ export async function updateRecipe(
   if (data.type !== undefined) patch.type = data.type;
   if (data.yieldQty !== undefined) patch.yield_qty = data.yieldQty;
   if (data.yieldUnit !== undefined) patch.yield_unit = data.yieldUnit;
+  if (data.imageUrl !== undefined) patch.image_url = data.imageUrl;
+  if (data.instructionsMd !== undefined) patch.instructions_md = data.instructionsMd;
+  if (data.videoUrl !== undefined) patch.video_url = data.videoUrl;
   if (data.active !== undefined) patch.active = data.active;
 
   const { data: row, error } = await supabase
@@ -222,6 +235,89 @@ export async function deleteRecipe(tenantId: string, id: string): Promise<void> 
       },
     });
   }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnySupabase = { from: (table: string) => any };
+
+export async function getRecipeVersions(
+  tenantId: string,
+  recipeId: string,
+): Promise<import('@/lib/types').RecipeVersion[]> {
+  const supabase = await createServerSupabaseClient();
+  const db = supabase as unknown as AnySupabase;
+  const { data, error } = await db
+    .from('recipe_versions')
+    .select('*')
+    .eq('tenant_id', tenantId)
+    .eq('recipe_id', recipeId)
+    .order('version', { ascending: false });
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+    id: row.id as string,
+    recipeId: row.recipe_id as string,
+    version: row.version as number,
+    changeNote: (row.change_note as string | null) ?? null,
+    createdAt: row.created_at as string,
+  }));
+}
+
+async function getRoleForTenant(tenantId: string): Promise<string | null> {
+  const ctx = await getAuthContext();
+  if (!ctx) return null;
+  const supabase = await createServerSupabaseClient();
+  const { data } = await supabase
+    .from('memberships')
+    .select('role')
+    .eq('tenant_id', tenantId)
+    .eq('user_id', ctx.userId)
+    .single();
+  return (data?.role as string | null) ?? null;
+}
+
+export async function saveRecipeVersion(
+  tenantId: string,
+  recipeId: string,
+  changeNote: string | null,
+): Promise<void> {
+  const role = await getRoleForTenant(tenantId);
+  assertRole(role as Parameters<typeof assertRole>[0], 'owner', 'manager', 'chef');
+  const supabase = await createServerSupabaseClient();
+  const db = supabase as unknown as AnySupabase;
+  const { data: last } = await db
+    .from('recipe_versions')
+    .select('version')
+    .eq('tenant_id', tenantId)
+    .eq('recipe_id', recipeId)
+    .order('version', { ascending: false })
+    .limit(1)
+    .single();
+  const nextVersion = last ? (last.version as number) + 1 : 1;
+  const { error } = await db.from('recipe_versions').insert({
+    tenant_id: tenantId,
+    recipe_id: recipeId,
+    version: nextVersion,
+    change_note: changeNote ?? null,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function restoreRecipeVersion(
+  tenantId: string,
+  recipeId: string,
+  version: number,
+): Promise<void> {
+  const role = await getRoleForTenant(tenantId);
+  assertRole(role as Parameters<typeof assertRole>[0], 'owner', 'manager', 'chef');
+  const supabase = await createServerSupabaseClient();
+  const db = supabase as unknown as AnySupabase;
+  const { error } = await db
+    .from('recipe_versions')
+    .update({ restored_at: new Date().toISOString() })
+    .eq('tenant_id', tenantId)
+    .eq('recipe_id', recipeId)
+    .eq('version', version);
+  if (error) throw new Error(error.message);
 }
 
 export async function detectCycle(
