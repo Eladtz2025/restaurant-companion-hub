@@ -46,8 +46,23 @@ export interface Recipe {
   yieldQty: number;
   yieldUnit: IngredientUnit;
   active: boolean;
+  imageUrl?: string | null;
+  instructionsMd?: string | null;
+  videoUrl?: string | null;
+  currentVersion?: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface RecipeVersion {
+  id: string;
+  tenantId: string;
+  recipeId: string;
+  version: number;
+  snapshotData: RecipeWithComponents;
+  changedBy: string | null;
+  changeNote: string | null;
+  createdAt: string;
 }
 
 export interface RecipeComponent {
