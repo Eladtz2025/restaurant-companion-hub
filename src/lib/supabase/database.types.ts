@@ -233,40 +233,100 @@ export type Database = {
           },
         ];
       };
+      recipe_versions: {
+        Row: {
+          change_note: string | null;
+          changed_by: string | null;
+          created_at: string;
+          id: string;
+          recipe_id: string;
+          snapshot_data: Json;
+          tenant_id: string;
+          version: number;
+        };
+        Insert: {
+          change_note?: string | null;
+          changed_by?: string | null;
+          created_at?: string;
+          id?: string;
+          recipe_id: string;
+          snapshot_data: Json;
+          tenant_id: string;
+          version: number;
+        };
+        Update: {
+          change_note?: string | null;
+          changed_by?: string | null;
+          created_at?: string;
+          id?: string;
+          recipe_id?: string;
+          snapshot_data?: Json;
+          tenant_id?: string;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'recipe_versions_recipe_id_fkey';
+            columns: ['recipe_id'];
+            isOneToOne: false;
+            referencedRelation: 'recipes';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'recipe_versions_tenant_id_fkey';
+            columns: ['tenant_id'];
+            isOneToOne: false;
+            referencedRelation: 'tenants';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       recipes: {
         Row: {
           active: boolean;
           created_at: string;
+          current_version: number;
           id: string;
+          image_url: string | null;
+          instructions_md: string | null;
           name_en: string | null;
           name_he: string;
           tenant_id: string;
           type: string;
           updated_at: string;
+          video_url: string | null;
           yield_qty: number;
           yield_unit: string;
         };
         Insert: {
           active?: boolean;
           created_at?: string;
+          current_version?: number;
           id?: string;
+          image_url?: string | null;
+          instructions_md?: string | null;
           name_en?: string | null;
           name_he: string;
           tenant_id: string;
           type: string;
           updated_at?: string;
+          video_url?: string | null;
           yield_qty?: number;
           yield_unit?: string;
         };
         Update: {
           active?: boolean;
           created_at?: string;
+          current_version?: number;
           id?: string;
+          image_url?: string | null;
+          instructions_md?: string | null;
           name_en?: string | null;
           name_he?: string;
           tenant_id?: string;
           type?: string;
           updated_at?: string;
+          video_url?: string | null;
           yield_qty?: number;
           yield_unit?: string;
         };

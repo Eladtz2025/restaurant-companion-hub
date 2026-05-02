@@ -48,6 +48,10 @@ export interface Recipe {
   active: boolean;
   createdAt: string;
   updatedAt: string;
+  imageUrl?: string | null;
+  currentVersion?: number;
+  instructionsMd?: string | null;
+  videoUrl?: string | null;
 }
 
 export interface RecipeComponent {
@@ -64,4 +68,15 @@ export interface RecipeComponent {
 
 export interface RecipeWithComponents extends Recipe {
   components: RecipeComponent[];
+}
+
+export interface RecipeVersion {
+  id: string;
+  tenantId: string;
+  recipeId: string;
+  version: number;
+  snapshotData: RecipeWithComponents;
+  changedBy: string | null;
+  changeNote: string | null;
+  createdAt: string;
 }
