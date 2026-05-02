@@ -1,65 +1,39 @@
 ## Goal
 
-Build the Menu Items management screen at `/[tenantSlug]/menu` per the prompt: searchable + category-filterable table with create/edit drawer, recipe-link popover, delete confirm, active toggle, and CSV export. shadcn/ui only, RTL Hebrew.
+Build the FC Report + AI Recipe Assistant page at `/[tenantSlug]/menu/cost-analysis` per the prompt: a sortable Food Cost table on the left (70%) and an AI BOM-generation panel on the right (30%), responsive on mobile via a Sheet FAB.
 
-## Repo gaps to fill
+## Repo gaps
 
-The prompt assumes some pieces exist; they don't:
+The prompt assumes two server actions exist; neither does:
 
-1. **`linkRecipe` server action** — not in `src/lib/actions/menu-items.ts`. I already appended a stub during exploration that updates `recipe_id` on `menu_items` (cast to `never` since the generated type doesn't list the column yet). Backend phase will add the column, RLS, and proper audit logging.
-2. **`MenuItem.recipeId`** — missing from `src/lib/types/index.ts`. Will add as optional `recipeId?: string | null`.
-3. **shadcn `Switch`** — missing. `@radix-ui/react-switch` is not installed and we may not install packages. Will implement a small accessible button-based toggle (`role="switch"`, `aria-checked`) — same API surface (`checked` / `onCheckedChange`).
-4. **shadcn `Popover`** — missing wrapper, but `@radix-ui/react-popover` IS installed. Will add the standard shadcn `popover.tsx` wrapper.
+1. `src/lib/actions/fc-report.ts` — missing entirely. Will create with `getFCReport` as a working stub: queries `menu_items` and returns rows with `theoreticalCostCents: 0`, `fcPercent: 0`, no missing costs. The orchestrator phase replaces it with the real BOM-walking + 5-min cache implementation. Also exports the `FCReport` and `MenuItemFCRow` types used by the prompt.
+2. `src/lib/actions/ai-recipe.ts` — missing. Will create with `generateRecipeBOM` that throws `"generateRecipeBOM not yet implemented"` and exports the `GeneratedBOM`, `MatchResult`, `GenerateRecipeBOMResult` types. The UI handles this throw via the existing error state. Orchestrator phase wires the actual AI Gateway call + ingredient matching.
 
-No new npm installs.
+`createRecipe` and `addComponent` already exist in `src/lib/actions/recipes.ts` with matching signatures.
 
-## Files to create / modify
+## Files to create
 
-### New
+- `src/lib/actions/fc-report.ts` — stub action + types.
+- `src/lib/actions/ai-recipe.ts` — stub action + types.
+- `src/app/(app)/[tenantSlug]/menu/cost-analysis/page.tsx` — Server Component: tenant + role + initial report; renders `<FCReportClient>`.
+- `src/app/(app)/[tenantSlug]/menu/cost-analysis/_components/FCReportClient.tsx` — two-pane layout (`md:grid-cols-10` → 7/3 split); mobile shows FAB that opens the AI panel in a bottom Sheet.
+- `src/app/(app)/[tenantSlug]/menu/cost-analysis/_components/FCReportTable.tsx` — summary row (avg FC%, missing counts, רענן, הורד PDF), sortable table, color-coded FC% badge, missing-costs Tooltip, loading skeleton, empty state, error state with retry.
+- `src/app/(app)/[tenantSlug]/menu/cost-analysis/_components/AIAssistantPanel.tsx` — textarea + generate button, loading card, BOM result preview (recipe name, yield, confidence badge, components table with match status icons, warnings, instructions), `הוסף למתכונים` (role-gated to `owner`/`manager`/`chef`), recipe link after success, error card with retry.
 
-- `src/components/ui/switch.tsx` — minimal RTL-aware toggle.
-- `src/components/ui/popover.tsx` — standard shadcn radix wrapper.
-- `src/app/(app)/[tenantSlug]/menu/_components/MenuClient.tsx` — main client component.
-- `src/app/(app)/[tenantSlug]/menu/_components/MenuItemDrawer.tsx` — Sheet-based create/edit form.
-- `src/app/(app)/[tenantSlug]/menu/_components/LinkRecipePopover.tsx` — recipe search + link/unlink.
-- `src/app/(app)/[tenantSlug]/menu/_components/DeleteMenuItemDialog.tsx` — AlertDialog confirm.
+## Behavior notes
 
-### Modified
-
-- `src/app/(app)/[tenantSlug]/menu/page.tsx` — replace the placeholder with a real Server Component that fetches tenant, role, and the initial menu list, then renders `<MenuClient>`.
-- `src/lib/types/index.ts` — add optional `recipeId` to `MenuItem`.
-- `src/lib/actions/menu-items.ts` — already has the `linkRecipe` stub appended.
-
-## Component behavior summary
-
-### `MenuClient`
-- Props: `tenantId`, `tenantSlug`, `userRole`, `initialItems: MenuItem[]`.
-- State: `items`, `search`, `category` (`'all' | MenuCategory`), `editing` (item or `null` for new), `linkingItem`, `deletingItem`.
-- `useTransition` for refresh-on-mutation; sonner toasts.
-- Filter: search by `nameHe`/`nameEn` substring (lowercase), category exact match.
-- Table columns (RTL): שם מנה, קטגוריה, מחיר, מתכון מקושר, פעיל, פעולות. **No FC% column** per the prompt's "actually do NOT show FC% on this page" override.
-- Active toggle: optimistic, on error revert + toast.
-- CSV export: builds CSV from current filtered list; columns שם,קטגוריה,מחיר,מזהה-POS; UTF-8 BOM for Excel; `Blob` + temp `<a download>`.
-- Empty / loading states per spec.
-
-### `MenuItemDrawer`
-- shadcn `Sheet side="right"` (existing component).
-- Controlled form via `useState`. Validate on submit, show errors below fields in red.
-- Price input: number input bound to a string draft; on save `Math.round(parseFloat(draft) * 100)`.
-- Calls `createMenuItem` or `updateMenuItem`, returns the new/updated item to parent for state merge.
-
-### `LinkRecipePopover`
-- Trigger: small "קשר מתכון" button (or recipe name + Pencil if linked).
-- On open: lazy `getRecipes(tenantId, 'menu')` (cache once).
-- Search input + scrollable list. Click → `linkRecipe(...recipe.id)`. "הסר קישור" → `linkRecipe(..., null)`.
-- Optimistic update via callback to parent.
-
-### `DeleteMenuItemDialog`
-- shadcn AlertDialog. Optimistically removes from parent list; on error, parent re-inserts and shows toast.
+- Sorting default: `fcPercent` desc; clicking header toggles asc/desc; numeric vs string compare picked by value type.
+- FC% badge: `<30` green, `30–35` yellow, `>35` red, `theoreticalCostCents===0` → gray "אין נתונים".
+- "הורד PDF" → toast `"ייצוא PDF יהיה זמין בגרסה הבאה"`.
+- "רענן" → calls `getFCReport(tenantId)` from the client and updates state.
+- AI panel uses `useTransition` for generation and a manual `setAdding` flag for the create-recipe loop.
+- Add flow: `createRecipe` → for each component with `matchedIngredientId !== null` call `addComponent`. Skip `confidence: 'none'`. Show progress text `"יוצר מתכון..."` then `"מוסיף N מרכיבים..."`. Final toast + recipe link to `/${tenantSlug}/recipes/${recipe.id}`.
+- Mobile (<768px): right pane hidden; FAB at bottom-left (RTL-friendly) opens AI panel inside a bottom Sheet.
+- Toasts: `sonner` (project standard, equivalent to "shadcn useToast" in this codebase).
 
 ## Risks
 
-- `linkRecipe` will fail at runtime until the backend phase ships the `recipe_id` column on `menu_items`. UI is wired correctly so it will "just work" once the column lands. I'll note this clearly so it's not a surprise.
-- The custom `Switch` is intentionally minimal; if shadcn's animated switch is required later, swap to the official version after installing `@radix-ui/react-switch`.
+- `getFCReport` stub returns zeroed cost data, so the avg FC% / coloring will all show "אין נתונים" until the real implementation lands. Layout and sort still work.
+- `generateRecipeBOM` throws by default; the AI panel will display the prompt's error card on every attempt until the orchestrator wires the real action.
 
 Ready to implement on approval.
