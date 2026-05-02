@@ -68,10 +68,16 @@ export function RecipeEditorClient({
 
   // Local components state for optimistic updates
   const [components, setComponents] = useState<RecipeComponent[]>(recipe.components);
+  // Image URL local state so the upload component can update the header image
+  const [imageUrl, setImageUrl] = useState<string | null>(recipe.imageUrl ?? null);
 
   useEffect(() => {
     setComponents(recipe.components);
   }, [recipe.components]);
+
+  useEffect(() => {
+    setImageUrl(recipe.imageUrl ?? null);
+  }, [recipe.imageUrl]);
 
   const ingredientsMap = useMemo(() => {
     const m = new Map<string, Ingredient>();
@@ -98,6 +104,12 @@ export function RecipeEditorClient({
         await updateRecipe(tenantId, recipe.id, { nameHe: trimmed });
         setSavedName(trimmed);
         setEditingName(false);
+        // Best-effort version snapshot — don't fail the save if versioning isn't ready
+        try {
+          await saveRecipeVersion(tenantId, recipe.id, 'עדכון ידני');
+        } catch {
+          /* ignore */
+        }
         toast.success('השינויים נשמרו');
         router.refresh();
       } catch (err) {
