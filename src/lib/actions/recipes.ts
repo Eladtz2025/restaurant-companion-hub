@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { logAuditEvent } from '@/lib/audit/logger';
 import { createServerSupabaseClient, getAuthContext } from '@/lib/supabase/server';
 
+import type { Json } from '@/lib/supabase/database.types';
 import type {
   IngredientUnit,
   Recipe,
@@ -312,7 +313,7 @@ export async function saveRecipeVersion(
       tenant_id: tenantId,
       recipe_id: recipeId,
       version: currentVersion,
-      snapshot_data: full as unknown as import('@/lib/supabase/database.types').Json,
+      snapshot_data: full as unknown as Json,
       change_note: changeNote ?? null,
     })
     .select()
