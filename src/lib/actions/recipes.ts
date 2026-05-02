@@ -111,6 +111,9 @@ export async function updateRecipe(
     yieldQty: number;
     yieldUnit: IngredientUnit;
     active: boolean;
+    imageUrl: string | null;
+    instructionsMd: string | null;
+    videoUrl: string | null;
   }>,
 ): Promise<Recipe> {
   const supabase = await createServerSupabaseClient();
@@ -121,6 +124,9 @@ export async function updateRecipe(
     yield_qty?: number;
     yield_unit?: string;
     active?: boolean;
+    image_url?: string | null;
+    instructions_md?: string | null;
+    video_url?: string | null;
   } = {};
   if (data.nameHe !== undefined) patch.name_he = data.nameHe;
   if (data.nameEn !== undefined) patch.name_en = data.nameEn;
@@ -128,6 +134,9 @@ export async function updateRecipe(
   if (data.yieldQty !== undefined) patch.yield_qty = data.yieldQty;
   if (data.yieldUnit !== undefined) patch.yield_unit = data.yieldUnit;
   if (data.active !== undefined) patch.active = data.active;
+  if (data.imageUrl !== undefined) patch.image_url = data.imageUrl;
+  if (data.instructionsMd !== undefined) patch.instructions_md = data.instructionsMd;
+  if (data.videoUrl !== undefined) patch.video_url = data.videoUrl;
 
   const { data: row, error } = await supabase
     .from('recipes')
