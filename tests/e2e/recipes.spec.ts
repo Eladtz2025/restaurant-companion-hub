@@ -235,6 +235,10 @@ const {
 } = await import('@/lib/actions/recipes');
 
 const TENANT = 'tenant-1';
+const ING_1 = '11111111-1111-1111-8111-111111111111';
+const ING_2 = '22222222-2222-2222-8222-222222222222';
+const ING_TOMATO = '33333333-3333-3333-8333-333333333333';
+const RECIPE_A = 'aaaaaaaa-aaaa-1aaa-8aaa-aaaaaaaaaaaa';
 
 describe('Recipes — full CRUD flow', () => {
   beforeEach(() => {
@@ -276,13 +280,13 @@ describe('Recipes — full CRUD flow', () => {
     });
 
     await addComponent(TENANT, recipe.id, {
-      ingredientId: 'ing-1',
+      ingredientId: ING_1,
       qty: 100,
       unit: 'g',
     });
 
     await addComponent(TENANT, recipe.id, {
-      ingredientId: 'ing-2',
+      ingredientId: ING_2,
       qty: 200,
       unit: 'ml',
     });
@@ -300,13 +304,13 @@ describe('Recipes — full CRUD flow', () => {
     });
 
     const comp1 = await addComponent(TENANT, recipe.id, {
-      ingredientId: 'ing-1',
+      ingredientId: ING_1,
       qty: 100,
       unit: 'g',
     });
 
     await addComponent(TENANT, recipe.id, {
-      ingredientId: 'ing-2',
+      ingredientId: ING_2,
       qty: 50,
       unit: 'g',
     });
@@ -327,7 +331,7 @@ describe('Recipes — full CRUD flow', () => {
     });
 
     const comp = await addComponent(TENANT, recipe.id, {
-      ingredientId: 'ing-tomato',
+      ingredientId: ING_TOMATO,
       qty: 500,
       unit: 'g',
     });
@@ -361,7 +365,7 @@ describe('Recipes — full CRUD flow', () => {
 
     await expect(
       addComponent(TENANT, 'recipe-A', {
-        subRecipeId: 'recipe-A', // self-reference → cycle
+        subRecipeId: RECIPE_A, // self-reference → cycle
         qty: 1,
         unit: 'unit',
       }),

@@ -1,5 +1,7 @@
 'use server';
 
+import { z } from 'zod';
+
 import { logAuditEvent } from '@/lib/audit/logger';
 import { createServerSupabaseClient, getAuthContext } from '@/lib/supabase/server';
 
@@ -10,6 +12,29 @@ import type {
   RecipeType,
   RecipeWithComponents,
 } from '@/lib/types';
+
+const UNIT_VALUES = ['kg', 'g', 'l', 'ml', 'unit', 'pkg'] as const;
+
+const RecipeSchema = z.object({
+  nameHe: z.string().min(1).max(100),
+  nameEn: z.string().max(100).nullable().optional(),
+  type: z.enum(['menu', 'prep']),
+  yieldQty: z.number().positive(),
+  yieldUnit: z.enum(UNIT_VALUES),
+  active: z.boolean().optional(),
+});
+
+const RecipeComponentSchema = z
+  .object({
+    ingredientId: z.string().uuid().nullable().optional(),
+    subRecipeId: z.string().uuid().nullable().optional(),
+    qty: z.number().positive(),
+    unit: z.enum(UNIT_VALUES),
+    sortOrder: z.number().int().optional(),
+  })
+  .refine((d) => !!(d.ingredientId ?? d.subRecipeId), {
+    message: 'Must have either ingredientId or subRecipeId',
+  });
 
 function rowToRecipe(row: Record<string, unknown>): Recipe {
   return {
@@ -72,6 +97,77 @@ export async function getRecipeWithComponents(
   };
 }
 
+export async function getRecipesWithCosts(
+  tenantId: string,
+  type?: RecipeType,
+): Promise<(Recipe & { theoreticalCostCents: number })[]> {
+  const { computeRecipeCost } = await import('@/lib/food-cost/calculator');
+  const supabase = await createServerSupabaseClient();
+
+  let q = supabase.from('recipes').select('*').eq('tenant_id', tenantId).eq('active', true);
+  if (type) q = q.eq('type', type);
+  const { data: recipes, error: recipesErr } = await q.order('name_he');
+  if (recipesErr) throw new Error(recipesErr.message);
+
+  const { data: components, error: compErr } = await supabase
+    .from('recipe_components')
+    .select('*')
+    .eq('tenant_id', tenantId);
+  if (compErr) throw new Error(compErr.message);
+
+  const { data: ingredients, error: ingErr } = await supabase
+    .from('ingredients')
+    .select('id, cost_per_unit_cents, unit')
+    .eq('tenant_id', tenantId);
+  if (ingErr) throw new Error(ingErr.message);
+
+  const ingredientCosts = new Map<string, number>(
+    (ingredients ?? []).map((i) => [i.id, i.cost_per_unit_cents ?? 0]),
+  );
+  const ingredientUnits = new Map<string, IngredientUnit>(
+    (ingredients ?? []).map((i) => [i.id, i.unit as IngredientUnit]),
+  );
+
+  const componentsByRecipe = new Map<string, RecipeComponent[]>();
+  for (const c of components ?? []) {
+    const list = componentsByRecipe.get(c.recipe_id) ?? [];
+    list.push(rowToComponent(c));
+    componentsByRecipe.set(c.recipe_id, list);
+  }
+
+  // Two-pass cost calculation to resolve sub-recipe costs
+  const recipeCosts = new Map<string, number>();
+  const recipeList = (recipes ?? []).map(rowToRecipe);
+
+  // First pass: recipes with only ingredients
+  for (const recipe of recipeList) {
+    const comps = componentsByRecipe.get(recipe.id) ?? [];
+    if (comps.every((c) => c.ingredientId !== null)) {
+      const withComps: RecipeWithComponents = { ...recipe, components: comps };
+      recipeCosts.set(
+        recipe.id,
+        computeRecipeCost(withComps, ingredientCosts, new Map(), ingredientUnits),
+      );
+    }
+  }
+  // Second pass: recipes that use sub-recipes
+  for (const recipe of recipeList) {
+    if (!recipeCosts.has(recipe.id)) {
+      const comps = componentsByRecipe.get(recipe.id) ?? [];
+      const withComps: RecipeWithComponents = { ...recipe, components: comps };
+      recipeCosts.set(
+        recipe.id,
+        computeRecipeCost(withComps, ingredientCosts, recipeCosts, ingredientUnits),
+      );
+    }
+  }
+
+  return recipeList.map((r) => ({
+    ...r,
+    theoreticalCostCents: Math.round(recipeCosts.get(r.id) ?? 0),
+  }));
+}
+
 export async function createRecipe(
   tenantId: string,
   data: {
@@ -83,17 +179,25 @@ export async function createRecipe(
     active?: boolean;
   },
 ): Promise<Recipe> {
+  const validated = RecipeSchema.parse({
+    nameHe: data.nameHe,
+    nameEn: data.nameEn,
+    type: data.type,
+    yieldQty: data.yieldQty ?? 1,
+    yieldUnit: data.yieldUnit ?? 'unit',
+    active: data.active,
+  });
   const supabase = await createServerSupabaseClient();
   const { data: row, error } = await supabase
     .from('recipes')
     .insert({
       tenant_id: tenantId,
-      name_he: data.nameHe,
-      name_en: data.nameEn ?? null,
-      type: data.type,
-      yield_qty: data.yieldQty ?? 1,
-      yield_unit: data.yieldUnit ?? 'unit',
-      active: data.active ?? true,
+      name_he: validated.nameHe,
+      name_en: validated.nameEn ?? null,
+      type: validated.type,
+      yield_qty: validated.yieldQty,
+      yield_unit: validated.yieldUnit,
+      active: validated.active ?? true,
     })
     .select()
     .single();
@@ -151,17 +255,24 @@ export async function addComponent(
     sortOrder?: number;
   },
 ): Promise<RecipeComponent> {
+  const validated = RecipeComponentSchema.parse(component);
+
+  if (validated.subRecipeId) {
+    const hasCycle = await detectCycle(tenantId, recipeId, validated.subRecipeId);
+    if (hasCycle) throw new Error('לא ניתן להוסיף — יוצר לולאה במתכון');
+  }
+
   const supabase = await createServerSupabaseClient();
   const { data: row, error } = await supabase
     .from('recipe_components')
     .insert({
       tenant_id: tenantId,
       recipe_id: recipeId,
-      ingredient_id: component.ingredientId ?? null,
-      sub_recipe_id: component.subRecipeId ?? null,
-      qty: component.qty,
-      unit: component.unit,
-      sort_order: component.sortOrder ?? 0,
+      ingredient_id: validated.ingredientId ?? null,
+      sub_recipe_id: validated.subRecipeId ?? null,
+      qty: validated.qty,
+      unit: validated.unit,
+      sort_order: validated.sortOrder ?? 0,
     })
     .select()
     .single();
