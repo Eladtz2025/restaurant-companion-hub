@@ -28,8 +28,8 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'בית', href: '', icon: Home, minRole: 'staff' },
-  { label: 'Prep List', href: '/prep', icon: ClipboardList, minRole: 'chef' },
-  { label: 'צ׳קליסט', href: '/checklist', icon: CheckSquare, minRole: 'staff' },
+  { label: 'רשימת הכנות', href: '/prep', icon: ClipboardList, minRole: 'chef' },
+  { label: 'צ׳קליסט', href: '/checklists', icon: CheckSquare, minRole: 'staff' },
   { label: 'מלאי', href: '/inventory', icon: Package, minRole: 'chef' },
   { label: 'תפריט ומתכונים', href: '/menu', icon: UtensilsCrossed, minRole: 'manager' },
   { label: 'ביצועי פלור', href: '/floor', icon: LayoutDashboard, minRole: 'manager' },
