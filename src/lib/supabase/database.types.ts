@@ -350,6 +350,206 @@ export type Database = {
           },
         ];
       };
+      prep_tasks: {
+        Row: {
+          assigned_to: string | null;
+          completed_at: string | null;
+          created_at: string;
+          id: string;
+          notes: string | null;
+          prep_date: string;
+          qty_actual: number | null;
+          qty_required: number;
+          recipe_id: string;
+          status: string;
+          tenant_id: string;
+          unit: string;
+          updated_at: string;
+        };
+        Insert: {
+          assigned_to?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          id?: string;
+          notes?: string | null;
+          prep_date: string;
+          qty_actual?: number | null;
+          qty_required: number;
+          recipe_id: string;
+          status?: string;
+          tenant_id: string;
+          unit: string;
+          updated_at?: string;
+        };
+        Update: {
+          assigned_to?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          id?: string;
+          notes?: string | null;
+          prep_date?: string;
+          qty_actual?: number | null;
+          qty_required?: number;
+          recipe_id?: string;
+          status?: string;
+          tenant_id?: string;
+          unit?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'prep_tasks_tenant_id_fkey';
+            columns: ['tenant_id'];
+            isOneToOne: false;
+            referencedRelation: 'tenants';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'prep_tasks_recipe_id_fkey';
+            columns: ['recipe_id'];
+            isOneToOne: false;
+            referencedRelation: 'recipes';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      checklists: {
+        Row: {
+          active: boolean;
+          created_at: string;
+          id: string;
+          name: string;
+          shift: string;
+          tenant_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          active?: boolean;
+          created_at?: string;
+          id?: string;
+          name: string;
+          shift: string;
+          tenant_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          created_at?: string;
+          id?: string;
+          name?: string;
+          shift?: string;
+          tenant_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'checklists_tenant_id_fkey';
+            columns: ['tenant_id'];
+            isOneToOne: false;
+            referencedRelation: 'tenants';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      checklist_items: {
+        Row: {
+          checklist_id: string;
+          created_at: string;
+          id: string;
+          sort_order: number;
+          tenant_id: string;
+          text: string;
+        };
+        Insert: {
+          checklist_id: string;
+          created_at?: string;
+          id?: string;
+          sort_order?: number;
+          tenant_id: string;
+          text: string;
+        };
+        Update: {
+          checklist_id?: string;
+          created_at?: string;
+          id?: string;
+          sort_order?: number;
+          tenant_id?: string;
+          text?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'checklist_items_tenant_id_fkey';
+            columns: ['tenant_id'];
+            isOneToOne: false;
+            referencedRelation: 'tenants';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'checklist_items_checklist_id_fkey';
+            columns: ['checklist_id'];
+            isOneToOne: false;
+            referencedRelation: 'checklists';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      checklist_completions: {
+        Row: {
+          checklist_id: string;
+          completed_by: string | null;
+          completed_items: Json;
+          completion_date: string;
+          created_at: string;
+          id: string;
+          notes: string | null;
+          signature_url: string | null;
+          status: string;
+          tenant_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          checklist_id: string;
+          completed_by?: string | null;
+          completed_items?: Json;
+          completion_date: string;
+          created_at?: string;
+          id?: string;
+          notes?: string | null;
+          signature_url?: string | null;
+          status?: string;
+          tenant_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          checklist_id?: string;
+          completed_by?: string | null;
+          completed_items?: Json;
+          completion_date?: string;
+          created_at?: string;
+          id?: string;
+          notes?: string | null;
+          signature_url?: string | null;
+          status?: string;
+          tenant_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'checklist_completions_tenant_id_fkey';
+            columns: ['tenant_id'];
+            isOneToOne: false;
+            referencedRelation: 'tenants';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'checklist_completions_checklist_id_fkey';
+            columns: ['checklist_id'];
+            isOneToOne: false;
+            referencedRelation: 'checklists';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       tenants: {
         Row: {
           created_at: string;

@@ -94,7 +94,12 @@ export async function updatePrepTaskStatus(
 ): Promise<PrepTask> {
   const validated = UpdateStatusSchema.parse(update);
   const supabase = await createServerSupabaseClient();
-  const patch: Record<string, unknown> = { status: validated.status };
+  const patch: {
+    status: string;
+    qty_actual?: number | null;
+    notes?: string | null;
+    completed_at?: string | null;
+  } = { status: validated.status };
   if (validated.qtyActual !== undefined) patch.qty_actual = validated.qtyActual;
   if (validated.notes !== undefined) patch.notes = validated.notes;
   if (validated.status === 'done') patch.completed_at = new Date().toISOString();
