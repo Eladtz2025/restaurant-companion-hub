@@ -81,3 +81,30 @@ export interface RecipeComponent {
 export interface RecipeWithComponents extends Recipe {
   components: RecipeComponent[];
 }
+
+export type PrepTaskStatus = 'pending' | 'in_progress' | 'done' | 'skipped';
+
+export interface PrepTask {
+  id: string;
+  tenantId: string;
+  recipeId: string;
+  prepDate: string;
+  qtyRequired: number;
+  qtyActual: number | null;
+  unit: string;
+  status: PrepTaskStatus;
+  notes: string | null;
+  assignedTo: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PrepSummary {
+  date: string;
+  total: number;
+  pending: number;
+  inProgress: number;
+  done: number;
+  skipped: number;
+}
