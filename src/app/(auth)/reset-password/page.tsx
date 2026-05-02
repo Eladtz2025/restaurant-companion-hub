@@ -7,7 +7,9 @@ import { Suspense, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { resetPasswordAction, updatePasswordAction } from '../login/actions';
+import { createBrowserSupabaseClient } from '@/lib/supabase/browser';
+
+import { updatePasswordAction } from '../login/actions';
 
 // ── Step 1: request reset link ────────────────────────────────────────────────
 
@@ -28,11 +30,12 @@ function RequestResetForm() {
 
   async function onSubmit(values: RequestValues) {
     setServerError(null);
-    const formData = new FormData();
-    formData.set('email', values.email);
-    const result = await resetPasswordAction(formData);
-    if (result?.error) {
-      setServerError(result.error);
+    const supabase = createBrowserSupabaseClient();
+    const { error } = await supabase.auth.resetPasswordForEmail(values.email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (error) {
+      setServerError('שגיאה בשליחת הדואר. בדוק את כתובת האימייל ונסה שוב.');
     } else {
       setSent(true);
     }
