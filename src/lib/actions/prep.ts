@@ -125,7 +125,7 @@ export async function updatePrepTaskStatus(
     if (!k.startsWith(`${tenantId}:`)) continue;
     const idx = tasks.findIndex((t) => t.id === taskId);
     if (idx === -1) continue;
-    const prev = tasks[idx];
+    const prev = tasks[idx]!;
     const next: PrepTask = {
       ...prev,
       status: update.status,
