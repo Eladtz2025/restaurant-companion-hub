@@ -108,3 +108,43 @@ export interface PrepSummary {
   done: number;
   skipped: number;
 }
+
+export type ShiftType = 'morning' | 'afternoon' | 'evening' | 'night';
+export type ChecklistStatus = 'pending' | 'partial' | 'completed';
+
+export interface Checklist {
+  id: string;
+  tenantId: string;
+  name: string;
+  shift: ShiftType;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChecklistItem {
+  id: string;
+  tenantId: string;
+  checklistId: string;
+  text: string;
+  sortOrder: number;
+  createdAt: string;
+}
+
+export interface ChecklistCompletion {
+  id: string;
+  tenantId: string;
+  checklistId: string;
+  completionDate: string;
+  completedBy: string | null;
+  signatureUrl: string | null;
+  completedItems: string[];
+  notes: string | null;
+  status: ChecklistStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChecklistWithItems extends Checklist {
+  items: ChecklistItem[];
+}

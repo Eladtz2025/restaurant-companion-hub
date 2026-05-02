@@ -1,99 +1,106 @@
-# Daily Prep List (Step 2.1)
+# Checklists (Step 2.2)
 
-Build the prep list screen for daily kitchen tasks, with date navigation, status summary, an editable table, and a side drawer for editing notes/quantities.
+Build the Checklists screen with daily completion + template management tabs. The action stub is missing and needs to be created. Three Radix primitives (Accordion, Checkbox, Progress) are not installed and not allowed by the "no new packages" rule, so I'll implement them with native HTML + Tailwind.
 
-## Files to create
+## Files
 
 ```
-src/lib/actions/prep.ts                                  (action stub)
-src/app/(app)/[tenantSlug]/prep/page.tsx                 (replace placeholder)
-src/app/(app)/[tenantSlug]/prep/_components/
-  PrepListClient.tsx
-  PrepTaskDrawer.tsx
-src/lib/types/index.ts                                   (add PrepTask types)
+src/lib/actions/checklists.ts                                     (action stub, 'use server')
+src/lib/types/index.ts                                            (add Checklist types)
+src/app/(app)/[tenantSlug]/checklists/page.tsx                    (server component)
+src/app/(app)/[tenantSlug]/checklists/_components/
+  ChecklistsClient.tsx
+  ChecklistCompletionSheet.tsx
+  ChecklistTemplateDrawer.tsx
+src/components/shared/Sidebar.tsx                                  (point to /checklists)
 ```
+
+Spec routes to `/checklists` (plural) but the existing sidebar + placeholder use `/checklist` (singular). I'll add the new `/checklists` route per spec and update the sidebar link so the nav item works. The legacy `/checklist/page.tsx` placeholder stays untouched.
 
 ## 1. Types (append to `src/lib/types/index.ts`)
 
-- `PrepTaskStatus = 'pending' | 'in_progress' | 'done' | 'skipped'`
-- `PrepTask` and `PrepSummary` interfaces per spec.
+- `ShiftType = 'morning' | 'afternoon' | 'evening' | 'night'`
+- `ChecklistStatus = 'pending' | 'partial' | 'completed'`
+- `Checklist`, `ChecklistItem`, `ChecklistCompletion`, `ChecklistWithItems` per spec.
 
-## 2. Action stub — `src/lib/actions/prep.ts`
+## 2. Action stub — `src/lib/actions/checklists.ts`
 
-Server-side stub (matches pattern used in `fc-report.ts` / `ai-recipe.ts`) exporting:
-- `getPrepTasksForDate(tenantId, date)` — returns a small mock `PrepTask[]` for today, empty for other dates.
-- `updatePrepTaskStatus(tenantId, taskId, update)` — echoes back the merged task.
-- `getPrepSummary(tenantId, date)` — derived counts.
+`'use server'` module with in-memory Map store keyed by tenant. Same pattern as `prep.ts`. Implements all 8 functions; seeds 2–3 sample checklists per tenant on first read. Validation: required fields throw with Hebrew messages. Will be wired to DB later.
 
-Marked `'use server'` so client components can import directly. Will be wired to real DB later.
-
-## 3. Page — `src/app/(app)/[tenantSlug]/prep/page.tsx`
+## 3. Page — `checklists/page.tsx`
 
 Server Component:
-- `requireTenant(tenantSlug)`
-- `getAuthContext()` → userId
-- `getUserRole(tenant.id, userId)` → role
-- Render `<PrepListClient tenantId tenantSlug userRole />`
+- `requireTenant`, `getAuthContext`, `getUserRole`
+- Renders `<ChecklistsClient tenantId tenantSlug userRole userId />`
 
-No initial data fetch — client fetches on mount based on selected date.
+## 4. `ChecklistsClient.tsx`
 
-## 4. `PrepListClient.tsx`
-
-State:
-- `date: string` (default `new Date().toISOString().slice(0,10)`)
-- `tasks: PrepTask[]`
-- `summary: PrepSummary | null`
-- `loading`, `error`
-- `editingTask: PrepTask | null`
-- `useTransition` for status/qty updates
+State: `activeTab` ('daily' | 'templates'), `date`, `shift`, `checklists`, `completions: Record<checklistId, ChecklistCompletion | null>`, `loading`, `error`, sheet/drawer state.
 
 Layout:
-- `<PageHeader title="רשימת הכנות" />`
-- Date navigation row: `ChevronRight` (אתמול — RTL: prev day visually on right), date display `dd/MM/yyyy` with `Calendar` icon, `ChevronLeft` (מחר). Buttons shift `date` by ±1 day.
-- Summary bar: colored `Badge`s — סה״כ (neutral/outline), ממתינות (yellow), בביצוע (blue), הושלמו (green), דולגו (gray, only if > 0).
-- Table columns (RTL): מתכון | כמות נדרשת | כמות בפועל | סטטוס | הערות | פעולות
-  - **כמות בפועל**: inline `<Input type="number">` (small, w-24), updates on blur if value changed → optimistic + `updatePrepTaskStatus`.
-  - **סטטוס**: `<Select>` with 4 Hebrew options, color-coded trigger via Badge wrapper or class. Change → optimistic + action call.
-  - **הערות**: truncated text in `Tooltip` (full text on hover); `—` if null.
-  - **פעולות**: `Pencil` icon button → opens `PrepTaskDrawer` for that task.
+- `<PageHeader title="צ׳קליסטים" />`
+- `<Tabs>` — "מילוי יומי" always; "ניהול תבניות" gated via `IfRole roles={['owner','manager']}`. If chef/staff, render only the daily tab.
 
-States:
-- Loading: 6 `Skeleton` rows.
-- Empty: centered `Calendar` icon + "אין משימות הכנה לתאריך זה".
-- Error: message + "נסה שוב" button calling refetch.
+### Daily tab
+- Date nav (ChevronRight prev / date display / ChevronLeft next), same pattern as Prep page.
+- Shift filter — secondary `<Tabs>` with 4 shifts (בוקר/צהריים/ערב/לילה).
+- Effect on `[date, shift]`: fetch `getChecklists(tenantId, shift)`, then `Promise.all` of `getChecklistCompletion` per list.
+- Render `<Card>` per checklist:
+  - Icon (`ClipboardList`) + name
+  - Progress text `X/Y` (color: green=all, yellow=partial, gray=none) + status `<Badge>` with same color mapping ("הושלם"/"חלקי"/"ממתין")
+  - "פתח" button → opens `ChecklistCompletionSheet`
+- States: 4 skeleton cards while loading; empty state "אין רשימות למשמרת זו" with `ClipboardList`; error retry.
 
-Data effect: `useEffect` on `date` → `Promise.all([getPrepTasksForDate, getPrepSummary])`, sets state, handles errors via `toast.error`.
+### Templates tab (owner/manager)
+- Header "+ הוסף רשימה" → opens `ChecklistTemplateDrawer` in create mode.
+- For each checklist, render a custom expandable card (no Radix Accordion — uses local `expanded[id]` state with chevron):
+  - Header row: chevron + name + shift badge + "ערוך" + "מחק" buttons.
+  - Expanded body: items list (each with `GripVertical` icon — visual only, no DnD per "no new packages"; trash icon → `removeChecklistItem`).
+  - Inline "+ הוסף סעיף" — `<Input>` + ✓ button; Enter or click calls `addChecklistItem`.
+- "מחק" → `updateChecklist(..., { active: false })` then drop from list (toast "הרשימה הוסרה").
+- Lazy-load items per checklist: when user expands for the first time, fetch via `getChecklistWithItems` and cache in `itemsById` state.
 
-Helper `recomputeSummary(tasks, date)` runs locally after optimistic updates so badges stay in sync without refetch.
+## 5. `ChecklistCompletionSheet.tsx`
 
-## 5. `PrepTaskDrawer.tsx`
+`<Sheet side="right" className="sm:max-w-lg">`. Loads `getChecklistWithItems` + completion on open.
 
-`<Sheet side="right">` with title "עדכון משימה". Local form state seeded from task prop.
+State: `completedItems: Set<string>`, `notes`, `saving`.
+
+Content:
+- Title: checklist name; subtitle: `formatDateHe(date)`.
+- Custom progress bar (div + inner div with width %, semantic colors via `bg-primary`).
+- Item list — native `<input type="checkbox">` styled with Tailwind (`accent-primary h-5 w-5`), label clickable. Checked rows get `bg-green-50` background.
+- `<Textarea>` for notes (max 500).
+- If completion exists, show "עודכן: <timestamp>" muted text.
+
+Status auto-derived: 0=pending, all=completed, else=partial.
+
+Footer:
+- "סגור" outline.
+- "שמור ✓" primary; spinner while saving. Calls `upsertChecklistCompletion(tenantId, checklistId, date, { completedBy: userId, completedItems: [...set], notes, signatureUrl: null })`. On success: toast, propagate updated completion to parent via `onSaved`, close.
+
+## 6. `ChecklistTemplateDrawer.tsx`
+
+`<Sheet side="right">`. Modes: create / edit (driven by `checklist?: Checklist | null` prop).
 
 Fields:
-- סטטוס — `<Select>` (4 statuses)
-- כמות בפועל — `<Input type="number" min="0">` (optional)
-- הערות — `<Textarea maxLength={500}>`
+- שם הרשימה — `<Input maxLength={100}>` (required).
+- משמרת — `<Select>` with 4 Hebrew options (required).
 
-Footer: "ביטול" (outline, closes) and "שמור" (primary, disabled+spinner during save). On save: call `updatePrepTaskStatus`, on success invoke `onSaved(updatedTask)` from parent for optimistic state update + toast, then close. On error: toast and stay open.
+Validation: trim name; if empty → toast "שם הרשימה הוא שדה חובה". If no shift → "יש לבחור משמרת".
 
-## Status / color mapping
+Footer: "ביטול" / "שמור" (spinner while saving). Calls `createChecklist` or `updateChecklist`. On success: toast, `onSaved(updated)`, close. Title: "רשימה חדשה" / "עריכת רשימה".
 
-Single `STATUS_META` map used by both table and drawer:
-```
-pending     → { label: 'ממתין',  badge: 'bg-yellow-100 text-yellow-800' }
-in_progress → { label: 'בביצוע', badge: 'bg-blue-100  text-blue-800'  }
-done        → { label: 'הושלם',  badge: 'bg-green-100 text-green-800' }
-skipped     → { label: 'דולג',   badge: 'bg-gray-100  text-gray-700'  }
-```
+## 7. Sidebar update
+
+Change `'/checklist'` → `'/checklists'` in `NAV_ITEMS` so the nav reaches the new page.
 
 ## Constraints honored
 
-- shadcn/ui only (Table, Sheet, Select, Badge, Input, Textarea, Skeleton, Button, Tooltip).
-- No fetch/axios — server actions imported directly.
-- No new packages.
-- Date formatted with `Intl.DateTimeFormat('he-IL', { day:'2-digit', month:'2-digit', year:'numeric' })`; ISO yyyy-mm-dd kept in state for action calls.
-- RTL: `text-right`, icons placed via standard flex (RTL flips automatically).
-- Toasts via `sonner` (project already uses it).
-- `recipeId` displayed as-is (no recipe name join) per spec.
-- `IfRole` not strictly required — all roles can update prep tasks; if needed later we can gate the drawer/actions to chef+ but spec doesn't restrict.
+- shadcn/ui only — Tabs, Sheet, Badge, Input, Textarea, Select, Skeleton, Button, Card, Label, Tooltip already present.
+- Accordion / Checkbox / Progress: replaced by lightweight Tailwind primitives (no new packages).
+- No fetch/axios — actions imported and called directly.
+- `signatureUrl` always `null` per spec.
+- Toasts via `sonner` (project standard).
+- Status colors via Tailwind classes consistent with prep page (`bg-yellow-100`, `bg-blue-100`, `bg-green-100`, `bg-gray-100`).
+- All UI text Hebrew, `text-right` and RTL-friendly flex.
