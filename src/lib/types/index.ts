@@ -148,3 +148,64 @@ export interface ChecklistCompletion {
 export interface ChecklistWithItems extends Checklist {
   items: ChecklistItem[];
 }
+
+export type AlertSeverity = 'info' | 'warning' | 'critical';
+export type AlertOperator = 'lt' | 'gt' | 'lte' | 'gte';
+export type KPIMetric =
+  | 'prep_completion_rate'
+  | 'checklist_completion_rate'
+  | 'fc_percent'
+  | 'active_recipes';
+
+export interface AlertRule {
+  id: string;
+  tenantId: string;
+  metric: KPIMetric;
+  threshold: number;
+  operator: AlertOperator;
+  severity: AlertSeverity;
+  active: boolean;
+  createdAt: string;
+}
+
+export interface Alert {
+  id: string;
+  tenantId: string;
+  ruleId: string | null;
+  metric: KPIMetric;
+  value: number;
+  threshold: number;
+  severity: AlertSeverity;
+  message: string;
+  acknowledged: boolean;
+  acknowledgedBy: string | null;
+  acknowledgedAt: string | null;
+  firedAt: string;
+  date: string;
+  createdAt: string;
+}
+
+export interface KPISnapshot {
+  date: string;
+  prepCompletionRate: number;
+  checklistCompletionRate: number;
+  fcPercent: number | null;
+  activeRecipes: number;
+  alerts: Alert[];
+}
+
+export interface ManagerOverride {
+  id: string;
+  tenantId: string;
+  entityType: 'prep_task';
+  entityId: string;
+  field: string;
+  originalValue: unknown;
+  overrideValue: unknown;
+  reason: string | null;
+  overriddenBy: string;
+  reverted: boolean;
+  revertedBy: string | null;
+  revertedAt: string | null;
+  createdAt: string;
+}
