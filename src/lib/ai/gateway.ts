@@ -1,4 +1,3 @@
-// @ts-expect-error — @anthropic-ai/sdk is installed at runtime; type stub used for local dev
 import Anthropic from '@anthropic-ai/sdk';
 
 export type AITaskType = 'recipe.bom_from_description';
