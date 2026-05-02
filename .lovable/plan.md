@@ -1,105 +1,58 @@
-## Dashboard KPIs & Alerts (Step 2.3)
+## Manager Overrides (Step 2.4)
 
-Build a Hebrew RTL dashboard at `/[tenantSlug]/dashboard` showing today's KPIs, active alerts, and (for owner/manager) alert rule management.
+Add a manager-only "override forecast" section to the existing `PrepTaskDrawer` so owners/managers can replace the AI-generated `qtyRequired` and view/revert override history. No new pages.
 
-### 1. Types — append to `src/lib/types/index.ts`
+### 1. Server action stub — `src/lib/actions/overrides.ts` (new)
 
-```ts
-export type KPIMetric =
-  | 'prep_completion_rate'
-  | 'checklist_completion_rate'
-  | 'fc_percent'
-  | 'active_recipes';
-export type AlertSeverity = 'info' | 'warning' | 'critical';
-export type AlertOperator = 'lt' | 'gt' | 'lte' | 'gte';
+`'use server'` module mirroring the `prep.ts` in-memory pattern.
 
-export interface Alert { id; metric; value; threshold; severity; message; acknowledged; firedAt; date }
-export interface KPISnapshot { date; prepCompletionRate; checklistCompletionRate; fcPercent: number|null; activeRecipes; alerts: Alert[] }
-export interface AlertRule { id; metric; threshold; operator; severity; active }
-```
+- Export `ManagerOverride` interface matching the spec.
+- In-memory store: `Map<tenantId, ManagerOverride[]>` (newest first).
+- `createOverride(tenantId, data)` — generates id, sets `overriddenBy: 'current_user'`, `reverted: false`, prepends to list.
+- `revertOverride(tenantId, overrideId)` — flips `reverted: true`, sets `revertedBy` and `revertedAt`.
+- `getOverrides(tenantId, options?)` — filters by `entityType` / `entityId`; excludes reverted unless `includeReverted: true`.
 
-### 2. Server action stubs — `src/lib/actions/dashboard.ts`
+### 2. `PrepListClient.tsx` — pass userRole down
 
-`'use server'` module with in-memory store (matching `prep.ts` pattern). Exports:
+- The component already receives `userRole: Role | null` via Props but doesn't forward it. Update the `<PrepTaskDrawer ... />` call to add `userRole={userRole}`.
+- Also extend the `applyTaskUpdate` helper usage so the drawer can update the parent task when an override changes `qtyRequired` — reuse the existing `onSaved` prop (it already accepts a full `PrepTask`).
 
-- `getKPISnapshot(tenantId, date)` — returns seeded snapshot for today (e.g. prep 75%, checklist 92%, fc 32.5%, active 18) and 2 sample alerts (1 critical FC, 1 warning prep). For non-today dates returns zeros / empty alerts.
-- `getAlertRules(tenantId)` — returns 2 seeded rules.
-- `createAlertRule(tenantId, data)` — pushes new rule with generated id, defaults severity to `'warning'`.
-- `acknowledgeAlert(tenantId, alertId, userId)` — flips `acknowledged: true` and returns the alert.
+### 3. `PrepTaskDrawer.tsx` — add override section
 
-### 3. Page — `src/app/(app)/[tenantSlug]/dashboard/page.tsx`
+Imports to add: `Separator`, `Badge`, `Skeleton`, icons `Wrench`, `History`, `RotateCcw`, `AlertCircle`, `IfRole`, `getOverrides`/`createOverride`/`revertOverride`, type `ManagerOverride`.
 
-Server Component mirroring `checklists/page.tsx`:
+New props: `userRole: Role | null`.
 
-```tsx
-const { tenantSlug } = await params;
-const tenant = await requireTenant(tenantSlug);
-const ctx = await getAuthContext();
-const role = ctx ? await getUserRole(tenant.id, ctx.userId) : null;
-return <DashboardClient tenantId={tenant.id} tenantSlug={tenantSlug} userRole={role} userId={ctx?.userId ?? null} />;
-```
+New state:
+- `overrides: ManagerOverride[]` (active only by default, but we show recent reverted in history too — load with `includeReverted: true` and cap to 5).
+- `loadingOverrides: boolean`
+- `newQty: string`, `reason: string`
+- `applyingOverride: boolean`
 
-### 4. `_components/DashboardClient.tsx` (`'use client'`)
+Behavior:
+- On drawer open (`open && task && isManager`) call `getOverrides(tenantId, { entityType: 'prep_task', entityId: task.id, includeReverted: true })`. Reset inputs.
+- Render an `IfRole roles={['owner', 'manager']}` block below the existing fields, separated by `<Separator />`:
+  - Header row: `Wrench` icon + "עקיפת תחזית (מנהל בלבד)".
+  - "כמות נדרשת נוכחית: {task.qtyRequired} {task.unit}" + Badge "מוגדר ע\"י מנהל" if any non-reverted override exists.
+  - Input number for new qty + Textarea for optional reason (max 200 chars) + "החל עקיפה" Button.
+  - History section with `History` icon header "היסטוריית עקיפות": list of up to 5 entries, each showing "{overrideValue} (היה: {originalValue})" + relative time + reason (if any) + "בטל" button (`RotateCcw`) for non-reverted entries; reverted entries are shown muted with "(בוטל)" label. Empty state: muted "אין עקיפות".
+  - Skeleton rows while `loadingOverrides`.
 
-State: `date` (default today ISO), `snapshot`, `rules`, `loading`, `error`, `rulesOpen`. Use `useState` + `useTransition`.
+Apply override flow:
+- Validate `Number(newQty) > 0` else toast error (`AlertCircle`-style red toast via `toast.error`).
+- Call `createOverride(tenantId, { entityType: 'prep_task', entityId: task.id, field: 'qty_required', originalValue: task.qtyRequired, overrideValue: parsed, reason: reason.trim() || null })`.
+- On success: prepend to local `overrides`, clear `newQty` + `reason`, toast success, and call `onSaved({ ...task, qtyRequired: parsed, updatedAt: new Date().toISOString() })` so the parent table updates optimistically. Do NOT close the drawer.
+- On error: toast.
 
-On mount and on date change: `Promise.all([getKPISnapshot, getAlertRules])`.
+Revert flow:
+- Call `revertOverride(tenantId, ov.id)`. Optimistically mark the entry `reverted: true` in local list. If this was the most recent active override, also call `onSaved({ ...task, qtyRequired: ov.originalValue as number, updatedAt: ... })` to restore the parent value. On error, rollback + toast.
 
-Layout (top to bottom):
+Helper: small `relativeTimeHe(iso)` (same shape as DashboardClient — "לפני X דקות/שעות/ימים").
 
-1. **PageHeader** `title="לוח בקרה"` with `actions` = date nav (◀ today ▶ buttons + formatted date badge using `Intl.DateTimeFormat('he-IL')`, mirrored chevrons like PrepListClient).
-2. **KPI cards row** — `grid gap-4 grid-cols-2 lg:grid-cols-4`. Inline KPI card component (not reusing `KPICard.tsx` since spec wants color-coded background + custom icon). Each card:
-   - Icon top-end, label, large centered number, color class from helper.
-   - Helpers: `rateColor(n)` → green ≥80, yellow ≥60, red <60. `fcColor(n|null)` → green <30, yellow ≤35, red >35, gray for null.
-   - Skeleton (h-24) while `loading`.
-   - Cards: השלמת הכנות (ChefHat), השלמת צ'קליסטים (CheckSquare), עלות מזון (TrendingUp), מתכונים פעילים (BookOpen, no color coding).
-3. **Alerts panel** — Card with header "התראות פעילות" + count Badge (red if any critical, yellow if only warnings, hidden if 0). Body:
-   - If empty: centered green CheckSquare + "אין התראות פעילות".
-   - Else: list rows sorted critical→warning→info. Each row: severity icon (AlertTriangle red/yellow, Info blue), message, relative time (small helper `relativeTimeHe(iso)` → "לפני X דקות/שעות/ימים"), and `IfRole` owner/manager → "אשר" Button. Acknowledge: optimistic remove from list + call `acknowledgeAlert`; on error toast + restore.
-4. **Manage rules button** (bottom) — `IfRole` owner/manager → Button "ניהול חוקי התראות" opens `AlertRulesSheet`.
+Manager check: `const isManager = userRole === 'owner' || userRole === 'manager'`.
 
-Toasts via `sonner` (matching existing pattern in PrepListClient).
+### Constraints
 
-### 5. `_components/AlertRulesSheet.tsx` (`'use client'`)
-
-Props: `tenantId`, `open`, `onOpenChange`, `rules`, `onRulesChange(next)`.
-
-`Sheet side="right"` with header "ניהול חוקי התראות". Body:
-
-- **Rules list**: each row shows `METRIC_LABEL[rule.metric]` | `OPERATOR_LABEL[rule.operator] threshold` | severity badge (color-coded) | Trash2 button (local-only delete since no `deleteAlertRule` action exists — filters from prop list and calls `onRulesChange`). Empty state "אין חוקים פעילים".
-- **Inline add form** at bottom (state: metric, operator, threshold, severity):
-  - Selects for metric / operator / severity (Hebrew labels per spec).
-  - Numeric Input for threshold.
-  - "הוסף חוק" Button — validates threshold is a number, calls `createAlertRule`, on success appends to list via `onRulesChange`, resets form. Uses `useTransition` for pending state. Error → toast.
-
-### 6. Sidebar — `src/components/shared/Sidebar.tsx`
-
-Add nav item between "בית" and "Prep List":
-
-```ts
-{ label: 'לוח בקרה', href: '/dashboard', icon: LayoutDashboard, minRole: 'manager' }
-```
-
-(Replace existing "ביצועי פלור" LayoutDashboard import usage — both can share the icon import.)
-
-### File structure
-
-```
-src/app/(app)/[tenantSlug]/dashboard/
-  page.tsx
-  _components/
-    DashboardClient.tsx
-    AlertRulesSheet.tsx
-src/lib/actions/dashboard.ts        (new)
-src/lib/types/index.ts              (append KPI/Alert types)
-src/components/shared/Sidebar.tsx   (add nav item)
-```
-
-### Constraints respected
-
-- No new packages, no fetch/axios, no real DB queries.
-- shadcn-only primitives: Card, Sheet, Badge, Button, Select, Input, Skeleton.
-- RTL: `flex-row-reverse` where needed; mirrored ChevronLeft/Right; `text-right`.
-- All UI strings Hebrew.
-- Acknowledge + rule mgmt gated via `IfRole` to owner/manager.
-- Optimistic updates for acknowledge + rule create; rollback on error.
+- Only modifies: `src/app/(app)/[tenantSlug]/prep/_components/PrepTaskDrawer.tsx`, `PrepListClient.tsx`.
+- Adds one new file: `src/lib/actions/overrides.ts` (stub action — required since spec says it already exists; mirrors other stubs).
+- shadcn-only primitives, Hebrew RTL, no new packages, optimistic updates with rollback.

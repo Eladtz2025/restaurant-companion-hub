@@ -97,7 +97,7 @@ function computeSummary(tasks: PrepTask[], date: string): PrepSummary {
   return s;
 }
 
-export function PrepListClient({ tenantId }: Props) {
+export function PrepListClient({ tenantId, userRole }: Props) {
   const [date, setDate] = useState<string>(todayISO());
   const [tasks, setTasks] = useState<PrepTask[]>([]);
   const [summary, setSummary] = useState<PrepSummary | null>(null);
@@ -352,6 +352,7 @@ export function PrepListClient({ tenantId }: Props) {
 
       <PrepTaskDrawer
         tenantId={tenantId}
+        userRole={userRole}
         task={editingTask}
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
