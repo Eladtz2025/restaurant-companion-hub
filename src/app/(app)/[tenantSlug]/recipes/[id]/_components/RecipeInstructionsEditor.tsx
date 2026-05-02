@@ -46,14 +46,14 @@ function renderMarkdown(src: string): string {
     const ulMatch = /^\s*-\s+(.*)$/.exec(line);
     const olMatch = /^\s*\d+\.\s+(.*)$/.exec(line);
 
-    if (ulMatch) {
+    if (ulMatch && ulMatch[1] !== undefined) {
       if (listType !== 'ul') {
         closeList();
         out.push('<ul class="list-disc pr-6">');
         listType = 'ul';
       }
       out.push(`<li>${applyInline(ulMatch[1])}</li>`);
-    } else if (olMatch) {
+    } else if (olMatch && olMatch[1] !== undefined) {
       if (listType !== 'ol') {
         closeList();
         out.push('<ol class="list-decimal pr-6">');
@@ -79,13 +79,13 @@ function applyInline(s: string): string {
 function parseVideoUrl(url: string): { provider: 'youtube' | 'vimeo'; id: string } | null {
   if (!url) return null;
   const yt1 = /(?:youtube\.com\/watch\?[^#]*v=)([A-Za-z0-9_-]{6,})/.exec(url);
-  if (yt1) return { provider: 'youtube', id: yt1[1] };
+  if (yt1 && yt1[1]) return { provider: 'youtube', id: yt1[1] };
   const yt2 = /youtu\.be\/([A-Za-z0-9_-]{6,})/.exec(url);
-  if (yt2) return { provider: 'youtube', id: yt2[1] };
+  if (yt2 && yt2[1]) return { provider: 'youtube', id: yt2[1] };
   const ytEmbed = /youtube\.com\/embed\/([A-Za-z0-9_-]{6,})/.exec(url);
-  if (ytEmbed) return { provider: 'youtube', id: ytEmbed[1] };
+  if (ytEmbed && ytEmbed[1]) return { provider: 'youtube', id: ytEmbed[1] };
   const vm = /vimeo\.com\/(?:video\/)?(\d+)/.exec(url);
-  if (vm) return { provider: 'vimeo', id: vm[1] };
+  if (vm && vm[1]) return { provider: 'vimeo', id: vm[1] };
   return null;
 }
 
