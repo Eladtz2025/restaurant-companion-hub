@@ -69,10 +69,10 @@ export function BomTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>שם</TableHead>
-              <TableHead>כמות</TableHead>
-              <TableHead>יחידה</TableHead>
-              <TableHead>עלות</TableHead>
+              <TableHead className="text-right">שם</TableHead>
+              <TableHead className="text-right">כמות</TableHead>
+              <TableHead className="text-right">יחידה</TableHead>
+              <TableHead className="text-right">עלות</TableHead>
               {canEdit && <TableHead className="w-12" />}
             </TableRow>
           </TableHeader>
@@ -95,9 +95,7 @@ export function BomTable({
                   onChange={(next) =>
                     setComponents((prev) => prev.map((p) => (p.id === next.id ? next : p)))
                   }
-                  onRemove={() =>
-                    setComponents((prev) => prev.filter((p) => p.id !== c.id))
-                  }
+                  onRemove={() => setComponents((prev) => prev.filter((p) => p.id !== c.id))}
                   onRestore={(restored) =>
                     setComponents((prev) =>
                       prev.some((p) => p.id === restored.id) ? prev : [...prev, restored],
@@ -214,8 +212,8 @@ function ComponentRow({
 
   return (
     <TableRow>
-      <TableCell className="font-medium">{displayName}</TableCell>
-      <TableCell>
+      <TableCell className="text-right font-medium">{displayName}</TableCell>
+      <TableCell className="text-right">
         {canEdit ? (
           <Input
             type="number"
@@ -233,7 +231,7 @@ function ComponentRow({
           component.qty
         )}
       </TableCell>
-      <TableCell>
+      <TableCell className="text-right">
         {canEdit ? (
           <Select value={component.unit} onValueChange={(v) => commitUnit(v as IngredientUnit)}>
             <SelectTrigger className="h-8 w-24">
@@ -251,7 +249,7 @@ function ComponentRow({
           UNIT_OPTIONS.find((u) => u.value === component.unit)?.label
         )}
       </TableCell>
-      <TableCell>{costLabel}</TableCell>
+      <TableCell className="text-right">{costLabel}</TableCell>
       {canEdit && (
         <TableCell>
           <Button variant="ghost" size="sm" onClick={handleRemove} aria-label="הסר">

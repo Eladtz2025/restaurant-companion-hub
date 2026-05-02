@@ -112,7 +112,12 @@ export function AddComponentDialog({
         reset();
         onOpenChange(false);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'שגיאה בהוספה');
+        const msg = err instanceof Error ? err.message : 'שגיאה בהוספה';
+        if (msg.includes('לא ניתן להוסיף — יוצר לולאה במתכון')) {
+          toast.error('לא ניתן להוסיף — יוצר לולאה במתכון');
+        } else {
+          toast.error(msg);
+        }
       }
     });
   }
@@ -145,9 +150,7 @@ export function AddComponentDialog({
 
           <div className="max-h-56 overflow-y-auto rounded-md border">
             {filtered.length === 0 ? (
-              <div className="text-muted-foreground p-4 text-center text-sm">
-                לא נמצאו תוצאות
-              </div>
+              <div className="text-muted-foreground p-4 text-center text-sm">לא נמצאו תוצאות</div>
             ) : (
               <ul className="divide-y">
                 {filtered.map((item) => (
