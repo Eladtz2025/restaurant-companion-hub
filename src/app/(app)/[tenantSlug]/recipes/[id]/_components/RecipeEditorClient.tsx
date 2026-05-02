@@ -10,10 +10,13 @@ import { IfRole } from '@/components/shared/IfRole';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { updateRecipe } from '@/lib/actions/recipes';
+import { saveRecipeVersion, updateRecipe } from '@/lib/actions/recipes';
 
 import { BomTable } from './BomTable';
 import { LiveCostPanel } from './LiveCostPanel';
+import { RecipeImageUpload } from './RecipeImageUpload';
+import { RecipeInstructionsEditor } from './RecipeInstructionsEditor';
+import { RecipeVersionHistory } from './RecipeVersionHistory';
 
 import type { Role } from '@/lib/permissions';
 import type {
