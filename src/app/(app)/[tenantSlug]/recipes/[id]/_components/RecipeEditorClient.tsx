@@ -139,7 +139,16 @@ export function RecipeEditorClient({
         </IfRole>
       </div>
 
-      {/* Header */}
+      {/* Image */}
+      <RecipeImageUpload
+        tenantId={tenantId}
+        recipeId={recipe.id}
+        imageUrl={imageUrl}
+        onImageChange={setImageUrl}
+        canEdit={canEdit}
+      />
+
+
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-3">
           <Badge
@@ -202,6 +211,20 @@ export function RecipeEditorClient({
 
         <LiveCostPanel components={components} ingredientsMap={ingredientsMap} />
       </div>
+
+      <RecipeInstructionsEditor
+        tenantId={tenantId}
+        recipeId={recipe.id}
+        instructionsMd={recipe.instructionsMd}
+        videoUrl={recipe.videoUrl}
+        canEdit={canEdit}
+      />
+
+      <RecipeVersionHistory
+        tenantId={tenantId}
+        recipeId={recipe.id}
+        canRestore={canEdit}
+      />
     </div>
   );
 }
