@@ -19,6 +19,7 @@ export interface MenuItem {
   category: string;
   priceCents: number;
   active: boolean;
+  recipeId?: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -1,85 +1,65 @@
 ## Goal
 
-Extend the existing recipe detail page (`src/app/(app)/[tenantSlug]/recipes/[id]/`) with three new sections: image upload, markdown instructions + video embed, and version history. All in Hebrew RTL, shadcn/ui only, role-gated for owner/manager.
+Build the Menu Items management screen at `/[tenantSlug]/menu` per the prompt: searchable + category-filterable table with create/edit drawer, recipe-link popover, delete confirm, active toggle, and CSV export. shadcn/ui only, RTL Hebrew.
 
-## Prerequisites — missing in repo
+## Repo gaps to fill
 
-The prompt says "Server Actions to use (already implemented)". They are **not** in the repo:
+The prompt assumes some pieces exist; they don't:
 
-- `src/lib/actions/recipes.ts` is missing `saveRecipeVersion`, `getRecipeVersions`, `restoreRecipeVersion`, and the `instructionsMd` / `videoUrl` / `imageUrl` fields on `updateRecipe`.
-- `src/lib/storage/recipe-images.ts` does not exist (no `uploadRecipeImage`, `deleteRecipeImage`).
-- The `Recipe` type lacks `imageUrl`, `instructionsMd`, `videoUrl`, `currentVersion`.
-- `RecipeVersion` type doesn't exist.
-- DB has no `recipe_versions` table or storage bucket for recipe images.
+1. **`linkRecipe` server action** — not in `src/lib/actions/menu-items.ts`. I already appended a stub during exploration that updates `recipe_id` on `menu_items` (cast to `never` since the generated type doesn't list the column yet). Backend phase will add the column, RLS, and proper audit logging.
+2. **`MenuItem.recipeId`** — missing from `src/lib/types/index.ts`. Will add as optional `recipeId?: string | null`.
+3. **shadcn `Switch`** — missing. `@radix-ui/react-switch` is not installed and we may not install packages. Will implement a small accessible button-based toggle (`role="switch"`, `aria-checked`) — same API surface (`checked` / `onCheckedChange`).
+4. **shadcn `Popover`** — missing wrapper, but `@radix-ui/react-popover` IS installed. Will add the standard shadcn `popover.tsx` wrapper.
 
-The prompt also says "DO NOT write Server Actions / DB migrations". So **Claude Code (the orchestrator) must ship those before this UI task lands**. I'll write the UI against the documented signatures and types — it will compile only once those types and actions exist.
+No new npm installs.
 
-**Recommendation**: I'll add the missing optional fields to the `Recipe` type and add a `RecipeVersion` interface (purely type-level, no DB / no actions), so the UI compiles. Backend wiring stays Claude's responsibility.
+## Files to create / modify
 
-## Missing shadcn primitives
+### New
 
-Need to add (shadcn copy-paste components, no new packages):
-- `src/components/ui/textarea.tsx`
-- `src/components/ui/collapsible.tsx` (wraps `@radix-ui/react-collapsible` — already a transitive dep of other radix components, will verify; if not present, fall back to a manual `useState` open/close — no new install).
+- `src/components/ui/switch.tsx` — minimal RTL-aware toggle.
+- `src/components/ui/popover.tsx` — standard shadcn radix wrapper.
+- `src/app/(app)/[tenantSlug]/menu/_components/MenuClient.tsx` — main client component.
+- `src/app/(app)/[tenantSlug]/menu/_components/MenuItemDrawer.tsx` — Sheet-based create/edit form.
+- `src/app/(app)/[tenantSlug]/menu/_components/LinkRecipePopover.tsx` — recipe search + link/unlink.
+- `src/app/(app)/[tenantSlug]/menu/_components/DeleteMenuItemDialog.tsx` — AlertDialog confirm.
 
-I'll verify availability of `@radix-ui/react-collapsible` first; if missing, I'll implement a plain `<button>` + conditional render instead of installing.
+### Modified
 
-## Deviations from prompt I'll apply (consistency with existing code)
+- `src/app/(app)/[tenantSlug]/menu/page.tsx` — replace the placeholder with a real Server Component that fetches tenant, role, and the initial menu list, then renders `<MenuClient>`.
+- `src/lib/types/index.ts` — add optional `recipeId` to `MenuItem`.
+- `src/lib/actions/menu-items.ts` — already has the `linkRecipe` stub appended.
 
-- **Toasts**: prompt says "shadcn useToast"; existing code uses `sonner`'s `toast`. I'll keep `sonner` for consistency.
-- **Role guard**: existing code uses `IfRole` wrapper component, not inline checks — I'll use `IfRole` for the action buttons.
-- **Header layout**: image goes above the name row, but I'll keep the existing back button / save button top bar untouched.
+## Component behavior summary
 
-## File plan
+### `MenuClient`
+- Props: `tenantId`, `tenantSlug`, `userRole`, `initialItems: MenuItem[]`.
+- State: `items`, `search`, `category` (`'all' | MenuCategory`), `editing` (item or `null` for new), `linkingItem`, `deletingItem`.
+- `useTransition` for refresh-on-mutation; sonner toasts.
+- Filter: search by `nameHe`/`nameEn` substring (lowercase), category exact match.
+- Table columns (RTL): שם מנה, קטגוריה, מחיר, מתכון מקושר, פעיל, פעולות. **No FC% column** per the prompt's "actually do NOT show FC% on this page" override.
+- Active toggle: optimistic, on error revert + toast.
+- CSV export: builds CSV from current filtered list; columns שם,קטגוריה,מחיר,מזהה-POS; UTF-8 BOM for Excel; `Blob` + temp `<a download>`.
+- Empty / loading states per spec.
 
-### New files
+### `MenuItemDrawer`
+- shadcn `Sheet side="right"` (existing component).
+- Controlled form via `useState`. Validate on submit, show errors below fields in red.
+- Price input: number input bound to a string draft; on save `Math.round(parseFloat(draft) * 100)`.
+- Calls `createMenuItem` or `updateMenuItem`, returns the new/updated item to parent for state merge.
 
-1. **`src/app/(app)/[tenantSlug]/recipes/[id]/_components/RecipeImageUpload.tsx`**
-   - Hidden `<input type="file">` triggered by "העלה תמונה" button.
-   - 5MB client-side check, accept jpeg/png/webp.
-   - Uploading state via `useTransition` + spinner.
-   - Renders `<img>` at 16:9, max-width 400px, `object-cover`, rounded.
-   - "הסר תמונה" button under image (role-gated).
-   - On success/error: sonner toast in Hebrew.
-   - Calls `uploadRecipeImage` then `updateRecipe({ imageUrl })`; calls `onImageChange` to update parent state.
+### `LinkRecipePopover`
+- Trigger: small "קשר מתכון" button (or recipe name + Pencil if linked).
+- On open: lazy `getRecipes(tenantId, 'menu')` (cache once).
+- Search input + scrollable list. Click → `linkRecipe(...recipe.id)`. "הסר קישור" → `linkRecipe(..., null)`.
+- Optimistic update via callback to parent.
 
-2. **`src/app/(app)/[tenantSlug]/recipes/[id]/_components/RecipeInstructionsEditor.tsx`**
-   - Card with shadcn `Tabs` ("עריכה" / "תצוגה מקדימה").
-   - Edit tab: `<Textarea dir="rtl">` with Hebrew placeholder.
-   - Preview tab: inline markdown converter (regex-based) supporting `**bold**`, `- bullet`, `1. numbered`, newlines→`<br>`. Output via `dangerouslySetInnerHTML` (escape HTML first to prevent XSS).
-   - Auto-save: `useEffect` with `setTimeout(1500)` debounce on text change → `updateRecipe({ instructionsMd })`. Sets a "נשמר ✓" indicator that fades after 2s.
-   - Below: video URL `<Input>` with validate-on-blur. Regex parses YouTube (`v=` or `youtu.be/`) and Vimeo (`vimeo.com/123`) IDs. On valid + change → `updateRecipe({ videoUrl })`. Renders `<iframe>` 16:9 below input. Invalid → red border + Hebrew error text.
-   - Read-only when `!canEdit`: textarea disabled, video input disabled.
+### `DeleteMenuItemDialog`
+- shadcn AlertDialog. Optimistically removes from parent list; on error, parent re-inserts and shows toast.
 
-3. **`src/app/(app)/[tenantSlug]/recipes/[id]/_components/RecipeVersionHistory.tsx`**
-   - Wrapped in a header button + state-driven open/close (since shadcn Collapsible may not be installed — uses `ChevronDown` rotating).
-   - Lazy load: on first open, `useTransition` calls `getRecipeVersions`. Cache result in state.
-   - Renders list of rows: version number, formatted date (`he-IL` long), changeNote.
-   - "שחזר" button per row (gated via `IfRole` / `canRestore` prop) → `AlertDialog` confirm → `restoreRecipeVersion` → toast + `router.refresh()`.
-   - Loading: 3× `<Skeleton>` rows.
-   - Empty: Hebrew message.
+## Risks
 
-### Modified files
+- `linkRecipe` will fail at runtime until the backend phase ships the `recipe_id` column on `menu_items`. UI is wired correctly so it will "just work" once the column lands. I'll note this clearly so it's not a surprise.
+- The custom `Switch` is intentionally minimal; if shadcn's animated switch is required later, swap to the official version after installing `@radix-ui/react-switch`.
 
-4. **`RecipeEditorClient.tsx`**
-   - Add `recipe` to local state via `useState` so `RecipeImageUpload`'s `onImageChange` can update header image.
-   - Insert `<RecipeImageUpload>` at top, above the back-button row (or just under it, above the name — per prompt: above name editor).
-   - After the BOM table grid: `<RecipeInstructionsEditor>` full-width below.
-   - At bottom: `<RecipeVersionHistory>`.
-   - Update `handleSaveHeader`: after `updateRecipe`, also call `saveRecipeVersion(tenantId, recipe.id, 'עדכון ידני')` (best-effort, swallow error with toast).
-
-5. **`src/lib/types/index.ts`**
-   - Add optional `imageUrl`, `instructionsMd`, `videoUrl`, `currentVersion` to `Recipe`.
-   - Add `RecipeVersion` interface.
-
-6. **`src/components/ui/textarea.tsx`** — standard shadcn textarea (small file).
-
-7. **`src/components/ui/collapsible.tsx`** — only if `@radix-ui/react-collapsible` is already in `node_modules`/`package.json`. Otherwise skip and use plain state in the version history component.
-
-## Open questions / risks
-
-- **Backend gap**: this UI cannot function in production until Claude Code adds the storage helpers, server actions, DB columns (`image_url`, `instructions_md`, `video_url`, `current_version`), the `recipe_versions` table, and the Supabase storage bucket. I'll write the UI to the documented signatures so it compiles and works as soon as the backend lands.
-- **Markdown XSS**: I'll HTML-escape the textarea content before applying the bold/list regex transformations, so user content can't inject tags via `dangerouslySetInnerHTML`.
-- **Version snapshotting on every "save"**: writing a version every time the user clicks save (even for tiny name edits) can pollute history. Acceptable per the prompt; flagging in case you want to debounce or only snapshot on BOM changes.
-
-Confirm and I'll implement.
+Ready to implement on approval.
