@@ -5,6 +5,7 @@ import { createServerSupabaseClient, getAuthContext } from '@/lib/supabase/serve
 
 import { IngredientSchema } from './ingredients.types';
 
+import type { IngredientRow } from '@/lib/ingredients/csv-importer';
 import type { Ingredient, IngredientCategory, IngredientUnit } from '@/lib/types';
 
 type Result<T> = { data: T } | { error: string };
@@ -155,6 +156,30 @@ export async function updateIngredient(
       .single();
     if (error) return { error: error.message };
     return { data: rowToIngredient(row) };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Unknown error' };
+  }
+}
+
+export async function bulkImportIngredients(
+  tenantId: string,
+  rows: IngredientRow[],
+): Promise<Result<{ imported: number }>> {
+  if (rows.length === 0) return { data: { imported: 0 } };
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { error } = await supabase.from('ingredients').insert(
+      rows.map((r) => ({
+        tenant_id: tenantId,
+        name_he: r.name_he,
+        unit: r.unit,
+        category: r.category,
+        cost_per_unit_cents: r.cost_per_unit_cents,
+        pkg_qty: r.pkg_qty ?? null,
+      })),
+    );
+    if (error) return { error: error.message };
+    return { data: { imported: rows.length } };
   } catch (err) {
     return { error: err instanceof Error ? err.message : 'Unknown error' };
   }

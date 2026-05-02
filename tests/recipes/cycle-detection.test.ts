@@ -2,26 +2,40 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('next/headers', () => ({ cookies: vi.fn(() => ({ getAll: () => [] })) }));
 
+// Adjacency map used by the mocked Supabase — tests set this before each detectCycle call
+let mockAdjacency: Map<string, string[]> = new Map();
+
 vi.mock('@/lib/supabase/server', () => ({
-  createServerSupabaseClient: vi.fn(() => ({
-    from: vi.fn((table: string) => {
-      if (table === 'recipe_components') {
-        return {
-          select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockReturnThis(),
-          not: vi.fn().mockReturnThis(),
-          then: vi.fn(),
-          // Simulate async query
-          [Symbol.asyncIterator]: undefined,
-        };
-      }
-      return {};
+  createServerSupabaseClient: vi.fn().mockImplementation(async () => ({
+    from: vi.fn().mockImplementation((table: string) => {
+      if (table !== 'recipe_components') return {};
+
+      // Each call to .from() gets its own builder so recipe_id can be captured per query
+      let capturedRecipeId: string | null = null;
+
+      const builder = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockImplementation((_col: string, val: string) => {
+          if (_col === 'recipe_id') capturedRecipeId = val;
+          return builder;
+        }),
+        not: vi.fn().mockImplementation(() => {
+          const children = capturedRecipeId ? (mockAdjacency.get(capturedRecipeId) ?? []) : [];
+          return Promise.resolve({
+            data: children.map((id) => ({ sub_recipe_id: id })),
+            error: null,
+          });
+        }),
+      };
+
+      return builder;
     }),
   })),
   getAuthContext: vi.fn(() => null),
 }));
 
-// Pure cycle detection logic (extracted for unit testing without DB)
+// ── Pure BFS (logic verification without DB) ────────────────────────────────
+
 function detectCyclePure(
   recipeId: string,
   candidateSubRecipeId: string,
@@ -43,19 +57,15 @@ function detectCyclePure(
 
 describe('detectCycle (pure BFS)', () => {
   it('returns false when no sub-recipes exist', () => {
-    const adj = new Map<string, string[]>();
-    expect(detectCyclePure('A', 'B', adj)).toBe(false);
+    expect(detectCyclePure('A', 'B', new Map())).toBe(false);
   });
 
   it('returns false for unrelated chain A→B→C, checking X→B', () => {
-    const adj = new Map([['B', ['C']]]);
-    expect(detectCyclePure('X', 'B', adj)).toBe(false);
+    expect(detectCyclePure('X', 'B', new Map([['B', ['C']]]))).toBe(false);
   });
 
   it('detects direct self-reference: A uses A as sub-recipe', () => {
-    const adj = new Map<string, string[]>();
-    // Candidate is A itself — checking if A can reach A
-    expect(detectCyclePure('A', 'A', adj)).toBe(true);
+    expect(detectCyclePure('A', 'A', new Map())).toBe(true);
   });
 
   it('detects indirect cycle: A→B→C→A', () => {
@@ -79,13 +89,47 @@ describe('detectCycle (pure BFS)', () => {
       ['B', ['D']],
       ['C', ['D']],
     ]);
-    // Adding B to A — no cycle
     expect(detectCyclePure('A', 'B', adj)).toBe(false);
     expect(detectCyclePure('A', 'C', adj)).toBe(false);
   });
 
   it('detects two-step cycle: A→B, B→A (adding B to A)', () => {
-    const adj = new Map([['B', ['A']]]);
-    expect(detectCyclePure('A', 'B', adj)).toBe(true);
+    expect(detectCyclePure('A', 'B', new Map([['B', ['A']]]))).toBe(true);
+  });
+});
+
+// ── Actual detectCycle from recipes.ts (with mocked Supabase) ───────────────
+
+const { detectCycle } = await import('@/lib/actions/recipes');
+
+const TENANT = 'tenant-1';
+
+describe('detectCycle (actual implementation, mocked DB)', () => {
+  it('returns false when candidate has no sub-recipe links', async () => {
+    mockAdjacency = new Map();
+    expect(await detectCycle(TENANT, 'recipe-A', 'recipe-B')).toBe(false);
+  });
+
+  it('returns true for direct self-reference (A → A)', async () => {
+    mockAdjacency = new Map();
+    expect(await detectCycle(TENANT, 'recipe-A', 'recipe-A')).toBe(true);
+  });
+
+  it('returns true for two-step cycle: A → B → A', async () => {
+    mockAdjacency = new Map([['recipe-B', ['recipe-A']]]);
+    expect(await detectCycle(TENANT, 'recipe-A', 'recipe-B')).toBe(true);
+  });
+
+  it('returns true for three-step cycle: A → B → C → A', async () => {
+    mockAdjacency = new Map([
+      ['recipe-B', ['recipe-C']],
+      ['recipe-C', ['recipe-A']],
+    ]);
+    expect(await detectCycle(TENANT, 'recipe-A', 'recipe-B')).toBe(true);
+  });
+
+  it('returns false for valid chain: A uses B, B uses C (no cycle)', async () => {
+    mockAdjacency = new Map([['recipe-B', ['recipe-C']]]);
+    expect(await detectCycle(TENANT, 'recipe-A', 'recipe-B')).toBe(false);
   });
 });
