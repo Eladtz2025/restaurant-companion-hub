@@ -10,4 +10,8 @@ export const inngest = new Inngest({
 export type RestaurantOSEvents = {
   'sync/tenant.requested': { data: { tenantId: string } };
   'echo/test.fired': { data: { message: string; firedAt: string } };
+  'prep/daily.generate.requested': { data: { tenantId: string; targetDate: string } };
+  'prep/daily.generation.completed': {
+    data: { tenantId: string; targetDate: string; tasksCreated: number; skipped: number };
+  };
 };
