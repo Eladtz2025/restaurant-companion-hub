@@ -3,7 +3,11 @@
 import { deduplicateRows, parseIngredientCSV } from '@/lib/ingredients/csv-importer';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
-import type { ImportResult } from './ingredients.types';
+export interface ImportResult {
+  imported: number;
+  skipped: number;
+  errors: string[];
+}
 
 export async function importIngredientsAction(
   tenantId: string,

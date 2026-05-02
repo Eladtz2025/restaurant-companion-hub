@@ -55,7 +55,7 @@ export default function SignupPage() {
     }
 
     if (data.session) {
-      window.location.assign('/onboarding');
+      window.location.assign('/api/setup');
       return;
     }
 

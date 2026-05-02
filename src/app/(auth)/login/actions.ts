@@ -1,5 +1,7 @@
 'use server';
 
+import { redirect } from 'next/navigation';
+
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 export async function loginAction(formData: FormData) {
@@ -13,7 +15,7 @@ export async function loginAction(formData: FormData) {
     return { error: 'אימייל או סיסמה שגויים' };
   }
 
-  return { success: true as const };
+  redirect('/');
 }
 
 export async function signupAction(formData: FormData) {
@@ -29,14 +31,13 @@ export async function signupAction(formData: FormData) {
   });
 
   if (error) {
-    console.error('[signupAction] supabase signUp error:', error);
     if (error.message.includes('already registered')) {
       return { error: 'כתובת האימייל כבר רשומה במערכת' };
     }
-    return { error: `שגיאה ביצירת החשבון: ${error.message}` };
+    return { error: 'שגיאה ביצירת החשבון. נסה שוב.' };
   }
 
-  return { success: true as const, redirectTo: '/onboarding' };
+  redirect('/api/setup');
 }
 
 export async function resetPasswordAction(formData: FormData) {
@@ -64,5 +65,5 @@ export async function updatePasswordAction(formData: FormData) {
     return { error: 'שגיאה בעדכון הסיסמה. נסה שוב.' };
   }
 
-  return { success: true as const };
+  redirect('/');
 }
