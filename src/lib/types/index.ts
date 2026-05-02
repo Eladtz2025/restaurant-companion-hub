@@ -148,3 +148,41 @@ export interface ChecklistCompletion {
 export interface ChecklistWithItems extends Checklist {
   items: ChecklistItem[];
 }
+
+export type KPIMetric =
+  | 'prep_completion_rate'
+  | 'checklist_completion_rate'
+  | 'fc_percent'
+  | 'active_recipes';
+export type AlertSeverity = 'info' | 'warning' | 'critical';
+export type AlertOperator = 'lt' | 'gt' | 'lte' | 'gte';
+
+export interface Alert {
+  id: string;
+  metric: KPIMetric;
+  value: number;
+  threshold: number;
+  severity: AlertSeverity;
+  message: string;
+  acknowledged: boolean;
+  firedAt: string;
+  date: string;
+}
+
+export interface KPISnapshot {
+  date: string;
+  prepCompletionRate: number;
+  checklistCompletionRate: number;
+  fcPercent: number | null;
+  activeRecipes: number;
+  alerts: Alert[];
+}
+
+export interface AlertRule {
+  id: string;
+  metric: KPIMetric;
+  threshold: number;
+  operator: AlertOperator;
+  severity: AlertSeverity;
+  active: boolean;
+}
