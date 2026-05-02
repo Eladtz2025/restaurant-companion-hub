@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { signupAction } from '../login/actions';
+import { createBrowserSupabaseClient } from '@/lib/supabase/browser';
 
 const schema = z
   .object({
@@ -24,6 +24,7 @@ type FormValues = z.infer<typeof schema>;
 
 export default function SignupPage() {
   const [serverError, setServerError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const {
     register,
@@ -33,12 +34,32 @@ export default function SignupPage() {
 
   async function onSubmit(values: FormValues) {
     setServerError(null);
-    const formData = new FormData();
-    formData.set('email', values.email);
-    formData.set('password', values.password);
-    formData.set('fullName', values.fullName);
-    const result = await signupAction(formData);
-    if (result?.error) setServerError(result.error);
+    setSuccessMsg(null);
+    const supabase = createBrowserSupabaseClient();
+    const { data, error } = await supabase.auth.signUp({
+      email: values.email,
+      password: values.password,
+      options: {
+        data: { full_name: values.fullName },
+        emailRedirectTo: `${window.location.origin}/login`,
+      },
+    });
+
+    if (error) {
+      if (error.message.toLowerCase().includes('already')) {
+        setServerError('כתובת האימייל כבר רשומה במערכת');
+      } else {
+        setServerError(`שגיאה ביצירת החשבון: ${error.message}`);
+      }
+      return;
+    }
+
+    if (data.session) {
+      window.location.assign('/api/setup');
+      return;
+    }
+
+    setSuccessMsg('נשלח אליך מייל לאישור החשבון. אשר אותו ואז התחבר.');
   }
 
   return (
@@ -51,6 +72,15 @@ export default function SignupPage() {
           className="bg-destructive/10 text-destructive rounded-md px-3 py-2 text-sm"
         >
           {serverError}
+        </div>
+      )}
+
+      {successMsg && (
+        <div
+          role="status"
+          className="rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400"
+        >
+          {successMsg}
         </div>
       )}
 

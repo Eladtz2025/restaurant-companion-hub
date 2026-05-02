@@ -37,7 +37,7 @@ export async function signupAction(formData: FormData) {
     return { error: 'שגיאה ביצירת החשבון. נסה שוב.' };
   }
 
-  redirect('/onboarding');
+  redirect('/api/setup');
 }
 
 export async function resetPasswordAction(formData: FormData) {
