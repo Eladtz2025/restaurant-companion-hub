@@ -168,3 +168,27 @@ export async function deleteMenuItem(tenantId: string, id: string): Promise<void
     });
   }
 }
+
+/**
+ * Link/unlink a recipe to a menu item — STUB.
+ * The `recipe_id` column on `menu_items` and the related logic are owned by
+ * the orchestrator phase. Replace this stub with a real implementation.
+ */
+export async function linkRecipe(
+  tenantId: string,
+  menuItemId: string,
+  recipeId: string | null,
+): Promise<MenuItem> {
+  const supabase = await createServerSupabaseClient();
+  const { data: row, error } = await supabase
+    .from('menu_items')
+    // Cast: recipe_id column may not yet exist in generated types.
+    .update({ recipe_id: recipeId } as never)
+    .eq('tenant_id', tenantId)
+    .eq('id', menuItemId)
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  const item = rowToMenuItem(row);
+  return { ...item, recipeId };
+}
