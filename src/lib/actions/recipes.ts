@@ -263,3 +263,33 @@ export async function detectCycle(
   }
   return false;
 }
+
+/**
+ * Version history actions — STUBS.
+ * Backend wiring (recipe_versions table, RLS, snapshot logic) is owned by
+ * the orchestrator phase. Replace these stubs with real implementations.
+ */
+export async function getRecipeVersions(
+  _tenantId: string,
+  _recipeId: string,
+): Promise<import('@/lib/types').RecipeVersion[]> {
+  return [];
+}
+
+export async function saveRecipeVersion(
+  _tenantId: string,
+  _recipeId: string,
+  _changeNote?: string,
+): Promise<import('@/lib/types').RecipeVersion | null> {
+  return null;
+}
+
+export async function restoreRecipeVersion(
+  tenantId: string,
+  recipeId: string,
+  _version: number,
+): Promise<RecipeWithComponents> {
+  const current = await getRecipeWithComponents(tenantId, recipeId);
+  if (!current) throw new Error('Recipe not found');
+  throw new Error('שחזור גרסאות עדיין לא ממומש');
+}
