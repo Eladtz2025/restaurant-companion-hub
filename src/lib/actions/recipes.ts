@@ -111,6 +111,9 @@ export async function updateRecipe(
     yieldQty: number;
     yieldUnit: IngredientUnit;
     active: boolean;
+    imageUrl: string | null;
+    instructionsMd: string | null;
+    videoUrl: string | null;
   }>,
 ): Promise<Recipe> {
   const supabase = await createServerSupabaseClient();
@@ -121,6 +124,9 @@ export async function updateRecipe(
     yield_qty?: number;
     yield_unit?: string;
     active?: boolean;
+    image_url?: string | null;
+    instructions_md?: string | null;
+    video_url?: string | null;
   } = {};
   if (data.nameHe !== undefined) patch.name_he = data.nameHe;
   if (data.nameEn !== undefined) patch.name_en = data.nameEn;
@@ -128,10 +134,14 @@ export async function updateRecipe(
   if (data.yieldQty !== undefined) patch.yield_qty = data.yieldQty;
   if (data.yieldUnit !== undefined) patch.yield_unit = data.yieldUnit;
   if (data.active !== undefined) patch.active = data.active;
+  if (data.imageUrl !== undefined) patch.image_url = data.imageUrl;
+  if (data.instructionsMd !== undefined) patch.instructions_md = data.instructionsMd;
+  if (data.videoUrl !== undefined) patch.video_url = data.videoUrl;
 
   const { data: row, error } = await supabase
     .from('recipes')
-    .update(patch)
+    // Cast: image_url / instructions_md / video_url columns may not yet exist in generated types.
+    .update(patch as never)
     .eq('tenant_id', tenantId)
     .eq('id', id)
     .select()
@@ -252,4 +262,34 @@ export async function detectCycle(
     }
   }
   return false;
+}
+
+/**
+ * Version history actions — STUBS.
+ * Backend wiring (recipe_versions table, RLS, snapshot logic) is owned by
+ * the orchestrator phase. Replace these stubs with real implementations.
+ */
+export async function getRecipeVersions(
+  _tenantId: string,
+  _recipeId: string,
+): Promise<import('@/lib/types').RecipeVersion[]> {
+  return [];
+}
+
+export async function saveRecipeVersion(
+  _tenantId: string,
+  _recipeId: string,
+  _changeNote?: string,
+): Promise<import('@/lib/types').RecipeVersion | null> {
+  return null;
+}
+
+export async function restoreRecipeVersion(
+  tenantId: string,
+  recipeId: string,
+  _version: number,
+): Promise<RecipeWithComponents> {
+  const current = await getRecipeWithComponents(tenantId, recipeId);
+  if (!current) throw new Error('Recipe not found');
+  throw new Error('שחזור גרסאות עדיין לא ממומש');
 }

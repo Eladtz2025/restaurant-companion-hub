@@ -10,10 +10,13 @@ import { IfRole } from '@/components/shared/IfRole';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { updateRecipe } from '@/lib/actions/recipes';
+import { saveRecipeVersion, updateRecipe } from '@/lib/actions/recipes';
 
 import { BomTable } from './BomTable';
 import { LiveCostPanel } from './LiveCostPanel';
+import { RecipeImageUpload } from './RecipeImageUpload';
+import { RecipeInstructionsEditor } from './RecipeInstructionsEditor';
+import { RecipeVersionHistory } from './RecipeVersionHistory';
 
 import type { Role } from '@/lib/permissions';
 import type {
@@ -65,10 +68,16 @@ export function RecipeEditorClient({
 
   // Local components state for optimistic updates
   const [components, setComponents] = useState<RecipeComponent[]>(recipe.components);
+  // Image URL local state so the upload component can update the header image
+  const [imageUrl, setImageUrl] = useState<string | null>(recipe.imageUrl ?? null);
 
   useEffect(() => {
     setComponents(recipe.components);
   }, [recipe.components]);
+
+  useEffect(() => {
+    setImageUrl(recipe.imageUrl ?? null);
+  }, [recipe.imageUrl]);
 
   const ingredientsMap = useMemo(() => {
     const m = new Map<string, Ingredient>();
@@ -95,6 +104,12 @@ export function RecipeEditorClient({
         await updateRecipe(tenantId, recipe.id, { nameHe: trimmed });
         setSavedName(trimmed);
         setEditingName(false);
+        // Best-effort version snapshot — don't fail the save if versioning isn't ready
+        try {
+          await saveRecipeVersion(tenantId, recipe.id, 'עדכון ידני');
+        } catch {
+          /* ignore */
+        }
         toast.success('השינויים נשמרו');
         router.refresh();
       } catch (err) {
@@ -124,7 +139,16 @@ export function RecipeEditorClient({
         </IfRole>
       </div>
 
-      {/* Header */}
+      {/* Image */}
+      <RecipeImageUpload
+        tenantId={tenantId}
+        recipeId={recipe.id}
+        imageUrl={imageUrl}
+        onImageChange={setImageUrl}
+        canEdit={canEdit}
+      />
+
+
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-3">
           <Badge
@@ -187,6 +211,20 @@ export function RecipeEditorClient({
 
         <LiveCostPanel components={components} ingredientsMap={ingredientsMap} />
       </div>
+
+      <RecipeInstructionsEditor
+        tenantId={tenantId}
+        recipeId={recipe.id}
+        instructionsMd={recipe.instructionsMd}
+        videoUrl={recipe.videoUrl}
+        canEdit={canEdit}
+      />
+
+      <RecipeVersionHistory
+        tenantId={tenantId}
+        recipeId={recipe.id}
+        canRestore={canEdit}
+      />
     </div>
   );
 }
