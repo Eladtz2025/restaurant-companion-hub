@@ -1,8 +1,15 @@
-export default function PrepPage() {
-  return (
-    <div className="flex flex-col gap-2">
-      <h1 className="text-2xl font-bold">Prep List</h1>
-      <p className="text-muted-foreground text-sm">תוכן יטען כאן בשלב הבא.</p>
-    </div>
-  );
+import { getAuthContext } from '@/lib/supabase/server';
+import { getUserRole, requireTenant } from '@/lib/tenant';
+
+import { PrepListClient } from './_components/PrepListClient';
+
+import type { Role } from '@/lib/permissions';
+
+export default async function PrepPage({ params }: { params: Promise<{ tenantSlug: string }> }) {
+  const { tenantSlug } = await params;
+  const tenant = await requireTenant(tenantSlug);
+  const ctx = await getAuthContext();
+  const role: Role | null = ctx ? await getUserRole(tenant.id, ctx.userId) : null;
+
+  return <PrepListClient tenantId={tenant.id} tenantSlug={tenantSlug} userRole={role} />;
 }

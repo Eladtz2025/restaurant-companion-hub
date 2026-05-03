@@ -42,4 +42,5 @@ supabase/.temp
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+.claude/worktrees/
 .claude/

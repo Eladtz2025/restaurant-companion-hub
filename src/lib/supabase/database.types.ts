@@ -138,6 +138,7 @@ export type Database = {
           name_he: string;
           pos_external_id: string | null;
           price_cents: number;
+          recipe_id: string | null;
           tenant_id: string;
           updated_at: string;
         };
@@ -150,6 +151,7 @@ export type Database = {
           name_he: string;
           pos_external_id?: string | null;
           price_cents: number;
+          recipe_id?: string | null;
           tenant_id: string;
           updated_at?: string;
         };
@@ -162,6 +164,7 @@ export type Database = {
           name_he?: string;
           pos_external_id?: string | null;
           price_cents?: number;
+          recipe_id?: string | null;
           tenant_id?: string;
           updated_at?: string;
         };
@@ -171,6 +174,13 @@ export type Database = {
             columns: ['tenant_id'];
             isOneToOne: false;
             referencedRelation: 'tenants';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'menu_items_recipe_id_fkey';
+            columns: ['recipe_id'];
+            isOneToOne: false;
+            referencedRelation: 'recipes';
             referencedColumns: ['id'];
           },
         ];
@@ -233,40 +243,100 @@ export type Database = {
           },
         ];
       };
+      recipe_versions: {
+        Row: {
+          change_note: string | null;
+          changed_by: string | null;
+          created_at: string;
+          id: string;
+          recipe_id: string;
+          snapshot_data: Json;
+          tenant_id: string;
+          version: number;
+        };
+        Insert: {
+          change_note?: string | null;
+          changed_by?: string | null;
+          created_at?: string;
+          id?: string;
+          recipe_id: string;
+          snapshot_data: Json;
+          tenant_id: string;
+          version: number;
+        };
+        Update: {
+          change_note?: string | null;
+          changed_by?: string | null;
+          created_at?: string;
+          id?: string;
+          recipe_id?: string;
+          snapshot_data?: Json;
+          tenant_id?: string;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'recipe_versions_recipe_id_fkey';
+            columns: ['recipe_id'];
+            isOneToOne: false;
+            referencedRelation: 'recipes';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'recipe_versions_tenant_id_fkey';
+            columns: ['tenant_id'];
+            isOneToOne: false;
+            referencedRelation: 'tenants';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       recipes: {
         Row: {
           active: boolean;
           created_at: string;
+          current_version: number;
           id: string;
+          image_url: string | null;
+          instructions_md: string | null;
           name_en: string | null;
           name_he: string;
           tenant_id: string;
           type: string;
           updated_at: string;
+          video_url: string | null;
           yield_qty: number;
           yield_unit: string;
         };
         Insert: {
           active?: boolean;
           created_at?: string;
+          current_version?: number;
           id?: string;
+          image_url?: string | null;
+          instructions_md?: string | null;
           name_en?: string | null;
           name_he: string;
           tenant_id: string;
           type: string;
           updated_at?: string;
+          video_url?: string | null;
           yield_qty?: number;
           yield_unit?: string;
         };
         Update: {
           active?: boolean;
           created_at?: string;
+          current_version?: number;
           id?: string;
+          image_url?: string | null;
+          instructions_md?: string | null;
           name_en?: string | null;
           name_he?: string;
           tenant_id?: string;
           type?: string;
           updated_at?: string;
+          video_url?: string | null;
           yield_qty?: number;
           yield_unit?: string;
         };
@@ -276,6 +346,206 @@ export type Database = {
             columns: ['tenant_id'];
             isOneToOne: false;
             referencedRelation: 'tenants';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      prep_tasks: {
+        Row: {
+          assigned_to: string | null;
+          completed_at: string | null;
+          created_at: string;
+          id: string;
+          notes: string | null;
+          prep_date: string;
+          qty_actual: number | null;
+          qty_required: number;
+          recipe_id: string;
+          status: string;
+          tenant_id: string;
+          unit: string;
+          updated_at: string;
+        };
+        Insert: {
+          assigned_to?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          id?: string;
+          notes?: string | null;
+          prep_date: string;
+          qty_actual?: number | null;
+          qty_required: number;
+          recipe_id: string;
+          status?: string;
+          tenant_id: string;
+          unit: string;
+          updated_at?: string;
+        };
+        Update: {
+          assigned_to?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          id?: string;
+          notes?: string | null;
+          prep_date?: string;
+          qty_actual?: number | null;
+          qty_required?: number;
+          recipe_id?: string;
+          status?: string;
+          tenant_id?: string;
+          unit?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'prep_tasks_tenant_id_fkey';
+            columns: ['tenant_id'];
+            isOneToOne: false;
+            referencedRelation: 'tenants';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'prep_tasks_recipe_id_fkey';
+            columns: ['recipe_id'];
+            isOneToOne: false;
+            referencedRelation: 'recipes';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      checklists: {
+        Row: {
+          active: boolean;
+          created_at: string;
+          id: string;
+          name: string;
+          shift: string;
+          tenant_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          active?: boolean;
+          created_at?: string;
+          id?: string;
+          name: string;
+          shift: string;
+          tenant_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          created_at?: string;
+          id?: string;
+          name?: string;
+          shift?: string;
+          tenant_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'checklists_tenant_id_fkey';
+            columns: ['tenant_id'];
+            isOneToOne: false;
+            referencedRelation: 'tenants';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      checklist_items: {
+        Row: {
+          checklist_id: string;
+          created_at: string;
+          id: string;
+          sort_order: number;
+          tenant_id: string;
+          text: string;
+        };
+        Insert: {
+          checklist_id: string;
+          created_at?: string;
+          id?: string;
+          sort_order?: number;
+          tenant_id: string;
+          text: string;
+        };
+        Update: {
+          checklist_id?: string;
+          created_at?: string;
+          id?: string;
+          sort_order?: number;
+          tenant_id?: string;
+          text?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'checklist_items_tenant_id_fkey';
+            columns: ['tenant_id'];
+            isOneToOne: false;
+            referencedRelation: 'tenants';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'checklist_items_checklist_id_fkey';
+            columns: ['checklist_id'];
+            isOneToOne: false;
+            referencedRelation: 'checklists';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      checklist_completions: {
+        Row: {
+          checklist_id: string;
+          completed_by: string | null;
+          completed_items: Json;
+          completion_date: string;
+          created_at: string;
+          id: string;
+          notes: string | null;
+          signature_url: string | null;
+          status: string;
+          tenant_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          checklist_id: string;
+          completed_by?: string | null;
+          completed_items?: Json;
+          completion_date: string;
+          created_at?: string;
+          id?: string;
+          notes?: string | null;
+          signature_url?: string | null;
+          status?: string;
+          tenant_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          checklist_id?: string;
+          completed_by?: string | null;
+          completed_items?: Json;
+          completion_date?: string;
+          created_at?: string;
+          id?: string;
+          notes?: string | null;
+          signature_url?: string | null;
+          status?: string;
+          tenant_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'checklist_completions_tenant_id_fkey';
+            columns: ['tenant_id'];
+            isOneToOne: false;
+            referencedRelation: 'tenants';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'checklist_completions_checklist_id_fkey';
+            columns: ['checklist_id'];
+            isOneToOne: false;
+            referencedRelation: 'checklists';
             referencedColumns: ['id'];
           },
         ];
@@ -301,6 +571,138 @@ export type Database = {
           name?: string;
           slug?: string;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      alert_rules: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          metric: string;
+          threshold: number;
+          operator: string;
+          severity: string;
+          active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          metric: string;
+          threshold: number;
+          operator: string;
+          severity?: string;
+          active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          metric?: string;
+          threshold?: number;
+          operator?: string;
+          severity?: string;
+          active?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      alerts: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          rule_id: string | null;
+          metric: string;
+          value: number;
+          threshold: number;
+          severity: string;
+          message: string;
+          acknowledged: boolean;
+          acknowledged_by: string | null;
+          acknowledged_at: string | null;
+          fired_at: string;
+          date: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          rule_id?: string | null;
+          metric: string;
+          value: number;
+          threshold: number;
+          severity: string;
+          message: string;
+          acknowledged?: boolean;
+          acknowledged_by?: string | null;
+          acknowledged_at?: string | null;
+          fired_at?: string;
+          date: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          rule_id?: string | null;
+          metric?: string;
+          value?: number;
+          threshold?: number;
+          severity?: string;
+          message?: string;
+          acknowledged?: boolean;
+          acknowledged_by?: string | null;
+          acknowledged_at?: string | null;
+          fired_at?: string;
+          date?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      manager_overrides: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          entity_type: string;
+          entity_id: string;
+          field: string;
+          original_value: unknown;
+          override_value: unknown;
+          reason: string | null;
+          overridden_by: string;
+          reverted: boolean;
+          reverted_by: string | null;
+          reverted_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          entity_type: string;
+          entity_id: string;
+          field: string;
+          original_value: unknown;
+          override_value: unknown;
+          reason?: string | null;
+          overridden_by: string;
+          reverted?: boolean;
+          reverted_by?: string | null;
+          reverted_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          entity_type?: string;
+          entity_id?: string;
+          field?: string;
+          original_value?: unknown;
+          override_value?: unknown;
+          reason?: string | null;
+          overridden_by?: string;
+          reverted?: boolean;
+          reverted_by?: string | null;
+          reverted_at?: string | null;
+          created_at?: string;
         };
         Relationships: [];
       };

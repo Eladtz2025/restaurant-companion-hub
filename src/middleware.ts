@@ -9,6 +9,7 @@ const PUBLIC_PATHS = [
   '/mfa/setup',
   '/api/inngest',
   '/api/_',
+  '/api/auth/debug',
   '/_next',
   '/favicon',
 ];
@@ -21,6 +22,12 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (isPublicPath(pathname)) {
+    return NextResponse.next();
+  }
+
+  // When Supabase env vars are absent (e.g. Lovable preview without a connected
+  // project) bypass auth entirely so the UI is still explorable.
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     return NextResponse.next();
   }
 

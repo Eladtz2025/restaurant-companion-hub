@@ -1,11 +1,30 @@
-export default function Home() {
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8 text-center">
-      <h1 className="text-4xl font-bold tracking-tight">Restaurant OS — תשתית פועלת</h1>
-      <p className="mt-4 text-lg text-gray-500">
-        ✓ כיוון RTL פעיל &nbsp;|&nbsp; Next.js 15 &nbsp;|&nbsp; TypeScript Strict &nbsp;|&nbsp;
-        Tailwind v4
-      </p>
-    </main>
-  );
+import { redirect } from 'next/navigation';
+
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+
+export default async function Home() {
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect('/login');
+  }
+
+  const { data: membership } = await supabase
+    .from('memberships')
+    .select('tenants(slug)')
+    .eq('user_id', user.id)
+    .limit(1)
+    .maybeSingle();
+
+  const slug = (membership?.tenants as { slug: string } | null)?.slug;
+
+  if (slug) {
+    redirect(`/${slug}`);
+  }
+
+  // No tenant yet — bootstrap via setup endpoint
+  redirect('/api/setup');
 }

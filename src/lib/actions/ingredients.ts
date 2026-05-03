@@ -7,7 +7,7 @@ import { createServerSupabaseClient, getAuthContext } from '@/lib/supabase/serve
 
 import type { Ingredient, IngredientCategory, IngredientUnit } from '@/lib/types';
 
-export const IngredientSchema = z.object({
+const IngredientSchema = z.object({
   name_he: z.string().min(1).max(100),
   unit: z.enum(['kg', 'g', 'l', 'ml', 'unit', 'pkg']),
   category: z.enum(['produce', 'meat', 'fish', 'dairy', 'dry', 'alcohol', 'other']),
@@ -15,7 +15,7 @@ export const IngredientSchema = z.object({
   pkg_qty: z.number().positive().optional(),
 });
 
-export type IngredientInput = z.infer<typeof IngredientSchema>;
+void IngredientSchema;
 
 type Result<T> = { data: T } | { error: string };
 
