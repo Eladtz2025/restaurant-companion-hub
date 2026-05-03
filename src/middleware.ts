@@ -5,11 +5,13 @@ const PUBLIC_PATHS = [
   '/login',
   '/signup',
   '/reset-password',
+  '/accept-invite',
   '/mfa/challenge',
   '/mfa/setup',
   '/api/inngest',
   '/api/_',
   '/api/auth/debug',
+  '/api/setup',
   '/_next',
   '/favicon',
 ];

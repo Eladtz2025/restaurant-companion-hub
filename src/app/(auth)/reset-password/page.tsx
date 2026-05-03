@@ -3,13 +3,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import { createBrowserSupabaseClient } from '@/lib/supabase/browser';
-
-import { updatePasswordAction } from '../login/actions';
 
 // ── Step 1: request reset link ────────────────────────────────────────────────
 
@@ -115,7 +113,9 @@ const newPasswordSchema = z
   });
 type NewPasswordValues = z.infer<typeof newPasswordSchema>;
 
-function UpdatePasswordForm() {
+function UpdatePasswordForm({ code }: { code: string | null }) {
+  const [ready, setReady] = useState(!code); // if no code, implicit flow — already has session
+  const [sessionError, setSessionError] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
 
   const {
@@ -124,12 +124,44 @@ function UpdatePasswordForm() {
     formState: { errors, isSubmitting },
   } = useForm<NewPasswordValues>({ resolver: zodResolver(newPasswordSchema) });
 
+  // Exchange PKCE code for a session once on mount
+  useEffect(() => {
+    if (!code) return;
+    const supabase = createBrowserSupabaseClient();
+    supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+      if (error) {
+        setSessionError('הקישור פג תוקף או כבר שומש. בקש קישור חדש.');
+      } else {
+        setReady(true);
+      }
+    });
+  }, [code]);
+
   async function onSubmit(values: NewPasswordValues) {
     setServerError(null);
-    const formData = new FormData();
-    formData.set('password', values.password);
-    const result = await updatePasswordAction(formData);
-    if (result?.error) setServerError(result.error);
+    const supabase = createBrowserSupabaseClient();
+    const { error } = await supabase.auth.updateUser({ password: values.password });
+    if (error) {
+      setServerError('שגיאה בעדכון הסיסמה. נסה שוב.');
+    } else {
+      window.location.assign('/');
+    }
+  }
+
+  if (sessionError) {
+    return (
+      <div className="flex flex-col gap-4">
+        <h1 className="text-xl font-semibold">הקישור אינו תקף</h1>
+        <p className="text-destructive text-sm">{sessionError}</p>
+        <Link href="/reset-password" className="text-sm font-medium hover:underline">
+          בקש קישור חדש
+        </Link>
+      </div>
+    );
+  }
+
+  if (!ready) {
+    return <p className="text-muted-foreground text-sm">מאמת קישור...</p>;
   }
 
   return (
@@ -192,9 +224,12 @@ function UpdatePasswordForm() {
 
 function ResetPasswordRouter() {
   const params = useSearchParams();
-  // Supabase sets `type=recovery` in the URL after the user clicks the email link.
-  const isRecovery = params.get('type') === 'recovery';
-  return isRecovery ? <UpdatePasswordForm /> : <RequestResetForm />;
+  // PKCE flow: Supabase sends ?code=xxx
+  // Implicit flow (legacy): Supabase sets ?type=recovery in the hash parsed to params
+  const code = params.get('code');
+  const type = params.get('type');
+  const isRecovery = !!code || type === 'recovery';
+  return isRecovery ? <UpdatePasswordForm code={code} /> : <RequestResetForm />;
 }
 
 export default function ResetPasswordPage() {
