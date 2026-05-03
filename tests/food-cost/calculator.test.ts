@@ -33,6 +33,9 @@ function makeRecipe(components: RecipeComponent[]): RecipeWithComponents {
     yieldQty: 1,
     yieldUnit: 'unit',
     active: true,
+    imageUrl: null,
+    instructionsMd: null,
+    videoUrl: null,
     createdAt: '2026-01-01',
     updatedAt: '2026-01-01',
     components,
@@ -49,6 +52,7 @@ function makeMenuItem(priceCents: number): MenuItem {
     category: 'main',
     priceCents,
     active: true,
+    recipeId: null,
     createdAt: '2026-01-01',
     updatedAt: '2026-01-01',
   };

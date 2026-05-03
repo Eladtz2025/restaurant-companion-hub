@@ -5,7 +5,114 @@ import { z } from 'zod';
 import { evaluateRules } from '@/lib/dashboard/kpis';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
+import type { ActivityItem } from '@/components/features/dashboard/ActivityFeed';
 import type { Alert, AlertRule, AlertSeverity, KPIMetric, KPISnapshot } from '@/lib/types';
+
+const ACTION_LABELS: Record<string, string> = {
+  INSERT: 'נוצר',
+  UPDATE: 'עודכן',
+  DELETE: 'נמחק',
+};
+
+const TABLE_LABELS: Record<string, string> = {
+  recipes: 'מתכון',
+  menu_items: 'פריט תפריט',
+  ingredients: 'מרכיב',
+  prep_tasks: 'משימת Prep',
+  checklist_completions: 'צ׳קליסט',
+  memberships: 'חבר צוות',
+};
+
+export async function getRecentActivity(tenantId: string): Promise<ActivityItem[]> {
+  const supabase = await createServerSupabaseClient();
+  const db = supabase as unknown as AnySupabase;
+  const { data } = await db
+    .from('_audit_log')
+    .select('id, action, table_name, new_data, created_at')
+    .eq('new_data->>tenant_id', tenantId)
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  if (!data) return [];
+
+  return (data as Record<string, unknown>[]).map((row) => {
+    const action = ACTION_LABELS[(row.action as string) ?? ''] ?? row.action;
+    const table = TABLE_LABELS[(row.table_name as string) ?? ''] ?? row.table_name;
+    const newData = (row.new_data ?? {}) as Record<string, unknown>;
+    const name =
+      (newData.name as string | null) ??
+      (newData.hebrew_name as string | null) ??
+      (newData.item_text as string | null) ??
+      '';
+    const text = name ? `${table} "${name}" ${action}` : `${table} ${action}`;
+    const ts = new Date(row.created_at as string);
+    const timestamp = ts.toLocaleString('he-IL', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    return { id: row.id as string, icon: null, text, timestamp };
+  });
+}
+
+async function calcFcPercent(tenantId: string): Promise<number | null> {
+  const supabase = await createServerSupabaseClient();
+  const db = supabase as unknown as AnySupabase;
+
+  const { data: items } = await db
+    .from('menu_items')
+    .select('price, recipe_id')
+    .eq('tenant_id', tenantId)
+    .eq('active', true)
+    .not('recipe_id', 'is', null);
+
+  if (!items || items.length === 0) return null;
+
+  const recipeIds = (items as Record<string, unknown>[]).map((i) => i.recipe_id as string);
+
+  const { data: components } = await supabase
+    .from('recipe_components')
+    .select('recipe_id, qty, ingredient_id')
+    .in('recipe_id', recipeIds)
+    .not('ingredient_id', 'is', null);
+
+  if (!components || components.length === 0) return null;
+
+  const ingredientIds = [...new Set(components.map((c) => c.ingredient_id as string))];
+  const { data: ingredients } = await db
+    .from('ingredients')
+    .select('id, cost_per_unit')
+    .in('id', ingredientIds);
+
+  if (!ingredients) return null;
+
+  const costMap = new Map(
+    (ingredients as Record<string, unknown>[]).map((i) => [
+      i.id as string,
+      Number(i.cost_per_unit ?? 0),
+    ]),
+  );
+
+  let totalCost = 0;
+  let totalRevenue = 0;
+
+  for (const item of items as Record<string, unknown>[]) {
+    if (!item.recipe_id || !item.price) continue;
+    const comps = (components as Record<string, unknown>[]).filter(
+      (c) => c.recipe_id === item.recipe_id,
+    );
+    const recipeCost = comps.reduce(
+      (sum, c) => sum + Number(c.qty) * (costMap.get(c.ingredient_id as string) ?? 0),
+      0,
+    );
+    totalCost += recipeCost;
+    totalRevenue += Number(item.price);
+  }
+
+  if (totalRevenue === 0) return null;
+  return (totalCost / totalRevenue) * 100;
+}
 
 function rowToRule(row: Record<string, unknown>): AlertRule {
   return {
@@ -46,7 +153,7 @@ export async function getKPISnapshot(tenantId: string, date: string): Promise<KP
   const supabase = await createServerSupabaseClient();
   const db = supabase as unknown as AnySupabase;
 
-  const [prepRes, checklistRes, recipesRes, alertsRes] = await Promise.all([
+  const [prepRes, checklistRes, recipesRes, alertsRes, fcPercent] = await Promise.all([
     supabase.from('prep_tasks').select('status').eq('tenant_id', tenantId).eq('prep_date', date),
     supabase
       .from('checklist_completions')
@@ -64,6 +171,7 @@ export async function getKPISnapshot(tenantId: string, date: string): Promise<KP
       .eq('tenant_id', tenantId)
       .eq('date', date)
       .eq('acknowledged', false),
+    calcFcPercent(tenantId),
   ]);
 
   const prepTasks = prepRes.data ?? [];
@@ -83,7 +191,7 @@ export async function getKPISnapshot(tenantId: string, date: string): Promise<KP
     date,
     prepCompletionRate,
     checklistCompletionRate,
-    fcPercent: null,
+    fcPercent,
     activeRecipes,
     alerts,
   };

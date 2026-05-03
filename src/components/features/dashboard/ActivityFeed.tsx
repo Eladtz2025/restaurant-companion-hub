@@ -4,7 +4,7 @@ import { EmptyState } from './EmptyState';
 
 export type ActivityItem = {
   id: string;
-  icon: React.ReactNode;
+  icon: React.ReactNode | null;
   text: string;
   timestamp: string;
 };
